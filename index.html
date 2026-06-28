@@ -613,7 +613,7 @@ function renderAPayments(){
       const st=getMonthStatus(s.id,ms),fee=PLAN_FEE[s.plan];
       let pill='',actionHtml='';
       if(st==='paid'){pill=`<span class="status-pill sp-paid">Paid</span>`;actionHtml=`<button class="action-sm a-gray" style="margin-top:4px" onclick="markDue(${s.id},'${ms}')">Undo paid</button>`;}
-      else if(st==='due'){pill=`<span class="status-pill sp-due">Due R${fee}</span>`;actionHtml=`<button class="action-sm a-green" style="margin-top:4px" onclick="markPaid(${s.id},'${ms}')">Mark paid</button>`;}
+      else if(st==='due'){pill=`<span class="status-pill sp-due">Due R${fee}</span>`;actionHtml=`<div style="display:flex;flex-direction:column;gap:4px;margin-top:4px"><button class="action-sm a-green" onclick="markPaid(${s.id},'${ms}')">Mark paid</button><button class="action-sm a-gray" onclick="adminMarkSkip(${s.id},'${ms}')">Mark skip</button></div>`;}
       else if(st==='skipped'){pill=`<span class="status-pill sp-skipped">Month off</span>`;}
       else if(st==='skip_requested'){pill=`<span class="status-pill sp-requested">Requested off</span>`;actionHtml=`<div style="display:flex;gap:4px;margin-top:4px"><button class="action-sm a-green" onclick="approveSkip(${s.id},'${ms}')">Approve</button><button class="action-sm a-red" onclick="denySkip(${s.id},'${ms}')">Deny</button></div>`;}
       else{
