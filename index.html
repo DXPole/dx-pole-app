@@ -1093,6 +1093,17 @@ function showLoginForm(){document.getElementById('auth-signup-form').style.displ
 function authError(msg){const el=document.getElementById('auth-error');el.textContent=msg;el.style.display='block';}
 function doLogout(){auth.signOut();}
 
+async function doResetPassword(){
+  const email=document.getElementById('auth-email').value.trim();
+  if(!email){authError('Enter your email address above first.');return;}
+  try{
+    await auth.sendPasswordResetEmail(email);
+    authError('Reset email sent — check your inbox.');
+    document.getElementById('auth-error').style.background='#EAF3DE';
+    document.getElementById('auth-error').style.color='#3B6D11';
+    document.getElementById('auth-error').style.borderColor='#C0DD97';
+  }catch(e){authError('Could not send reset email. Check the address and try again.');}
+}
 async function doLogin(){
   const email=document.getElementById('auth-email').value.trim();
   const password=document.getElementById('auth-password').value;
@@ -1189,6 +1200,7 @@ db.collection('studio').doc('state').onSnapshot(doc=>{
       <label>Password</label><input type="password" id="auth-password" placeholder="Password">
       <button class="btn-full btn-p" onclick="doLogin()">Sign in</button>
       <button class="btn-full btn-s" onclick="showSignupForm()" style="margin-top:8px">Create account</button>
+      <button onclick="doResetPassword()" style="background:none;border:none;color:#9333ea;font-size:12px;cursor:pointer;width:100%;margin-top:12px">Forgot password?</button>
     </div>
     <div id="auth-signup-form" style="display:none">
       <label>Full name</label><input type="text" id="auth-name" placeholder="e.g. Kezia Nkosi">
