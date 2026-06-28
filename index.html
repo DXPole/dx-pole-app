@@ -617,11 +617,27 @@ let deleteTargetId=null;
 function renderAStudents(){
   const el=document.getElementById('a-student-list'),currentMs=monthStr(now());
   if(!students.length){el.innerHTML=`<div class="empty"><i class="ti ti-users"></i>No students yet</div>`;return;}
-  el.innerHTML=students.map(s=>{
+  const sorted=[...students].sort((a,b)=>a.name.localeCompare(b.name));
+  el.innerHTML=sorted.map(s=>{
     const slot=recurringSlots[s.id],sc=slot?schedule.find(x=>x.id===slot.schedId):null;
     const mu=makeups.filter(m=>m.studentId===s.id).length,mst=getMonthStatus(s.id,currentMs);
-    const isTrial=s.plan==='trial';return`<div class="student-row"><div class="av" style="${isTrial?'background:#FAEEDA;color:#854F0B':''}}">${s.initials}</div><div style="flex:1;min-width:0"><div class="sname">${s.name}</div><div class="splan">${PLAN_LABEL[s.plan]}</div>${sc?`<div style="font-size:11px;color:#9333ea;margin-top:1px"><i class="ti ti-repeat" style="font-size:10px"></i> ${sc.day} ${sc.time}</div>`:''} ${mu>0?`<span style="font-size:10px;padding:2px 7px;border-radius:20px;font-weight:500;background:#EEEDFE;color:#534AB7;margin-top:2px;display:inline-block"><i class="ti ti-refresh" style="font-size:10px"></i> ${mu} make-up</span>`:''}</div><div style="display:flex;align-items:center;gap:6px;flex-shrink:0">${isTrial?`<button onclick="openUpgradeStudent(${s.id})" style="font-size:10px;padding:3px 8px;border-radius:20px;background:#9333ea;color:white;border:none;cursor:pointer;font-weight:500">Upgrade</button>`:`<span class="status-pill ${mst==='paid'?'sp-paid':mst==='due'?'sp-due':mst==='skipped'||mst==='skip_requested'?'sp-requested':'sp-tentative'}">${mst==='paid'?'Paid':mst==='due'?'Due':mst==='skipped'?'Month off':mst==='skip_requested'?'Skip req.':'Upcoming'}</span>`}<button onclick="openDeleteConfirm(${s.id})" title="Remove student" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:15px;padding:4px;border-radius:6px;line-height:1"><i class="ti ti-user-minus"></i></button></div></div>`;
+    const isTrial=s.plan==='trial';return`<div class="student-row"><div class="av" style="${isTrial?'background:#FAEEDA;color:#854F0B':''}}">${s.initials}</div><div style="flex:1;min-width:0"><div class="sname">${s.name}</div><div class="splan">${PLAN_LABEL[s.plan]}</div>${sc?`<div style="font-size:11px;color:#9333ea;margin-top:1px"><i class="ti ti-repeat" style="font-size:10px"></i> ${sc.day} ${sc.time}</div>`:''} ${mu>0?`<span style="font-size:10px;padding:2px 7px;border-radius:20px;font-weight:500;background:#EEEDFE;color:#534AB7;margin-top:2px;display:inline-block"><i class="ti ti-refresh" style="font-size:10px"></i> ${mu} make-up</span>`:''}</div><div style="display:flex;align-items:center;gap:6px;flex-shrink:0">${isTrial?`<button onclick="openUpgradeStudent(${s.id})" style="font-size:10px;padding:3px 8px;border-radius:20px;background:#9333ea;color:white;border:none;cursor:pointer;font-weight:500">Upgrade</button>`:`<span class="status-pill ${mst==='paid'?'sp-paid':mst==='due'?'sp-due':mst==='skipped'||mst==='skip_requested'?'sp-requested':'sp-tentative'}">${mst==='paid'?'Paid':mst==='due'?'Due':mst==='skipped'?'Month off':mst==='skip_requested'?'Skip req.':'Upcoming'}</span>`}<button onclick="openRenameStudent(${s.id})" title="Edit name" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:15px;padding:4px;border-radius:6px;line-height:1"><i class="ti ti-pencil"></i></button><button onclick="openDeleteConfirm(${s.id})" title="Remove student" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:15px;padding:4px;border-radius:6px;line-height:1"><i class="ti ti-user-minus"></i></button></div></div>`;
   }).join('');
+}
+let renameTargetId=null;
+function openRenameStudent(id){
+  const s=students.find(x=>x.id===id);if(!s)return;
+  renameTargetId=id;
+  document.getElementById('rename-input').value=s.name;
+  openOv('ov-rename-student');
+  setTimeout(()=>document.getElementById('rename-input').focus(),100);
+}
+function confirmRenameStudent(){
+  const name=document.getElementById('rename-input').value.trim();
+  if(!name||!renameTargetId)return;
+  const s=students.find(x=>x.id===renameTargetId);
+  if(s){s.name=name;s.initials=name.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);}
+  renameTargetId=null;closeOv('ov-rename-student');renderAStudents();updateWhoBar();
 }
 function openDeleteConfirm(id){
   const s=students.find(x=>x.id===id);if(!s)return;
@@ -1095,5 +1111,16 @@ updateWhoBar();renderSCal();renderAFinance();
   </div>
 </div></div>
 
+<div class="overlay" id="ov-rename-student"><div class="sheet">
+  <div class="handle"></div>
+  <h3>Edit student name</h3>
+  <p class="sub">Updates their name and initials everywhere.</p>
+  <label>Full name</label>
+  <input type="text" id="rename-input" placeholder="e.g. Lerato Mokoena">
+  <div class="btn-row">
+    <button class="btn-s" onclick="closeOv('ov-rename-student')">Cancel</button>
+    <button class="btn-p" onclick="confirmRenameStudent()">Save</button>
+  </div>
+</div></div>
 </body>
 </html>
