@@ -176,6 +176,7 @@ label{font-size:11px;color:var(--text-secondary);margin-bottom:3px;display:block
     <div class="mode-toggle">
       <button class="mode-btn active" onclick="setMode('student')" id="mbtn-student">Student</button>
       <button class="mode-btn" onclick="promptAdminPin()" id="mbtn-admin">Admin</button>
+      <button onclick="doLogout()" title="Sign out" style="background:none;border:none;color:#a89bb5;cursor:pointer;font-size:18px;padding:4px 2px;display:flex;align-items:center"><i class="ti ti-logout"></i></button>
     </div>
   </div>
 
@@ -184,7 +185,7 @@ label{font-size:11px;color:var(--text-secondary);margin-bottom:3px;display:block
       <div class="who-bar">
         <div class="who-avatar" id="s-avatar">KN</div>
         <div><div style="font-size:13px;font-weight:500;color:var(--text-primary)" id="s-name">Kezia Nkosi</div><div style="font-size:11px;color:var(--text-muted)" id="s-plan"></div></div>
-        <button class="switch-link" onclick="openOv('ov-switch')">Switch <i class="ti ti-chevron-down" style="font-size:10px"></i></button>
+        <button class="switch-link" id="s-switch-btn" onclick="openOv('ov-switch')">Switch <i class="ti ti-chevron-down" style="font-size:10px"></i></button>
       </div>
     </div>
     <div class="nav" id="snav">
@@ -354,6 +355,7 @@ label{font-size:11px;color:var(--text-secondary);margin-bottom:3px;display:block
 
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
 <script>
 firebase.initializeApp({
   apiKey:"AIzaSyAbdUG7wuFA35OHEO_y0gmY1udkMmfu9z8",
@@ -1083,6 +1085,64 @@ function confirmUpgradeStudent(){
   closeOv('ov-upgrade-student');
   renderAStudents();
 }
+const auth=firebase.auth();
+const ADMIN_EMAIL='dxpole.ssw@gmail.com';
+
+function showSignupForm(){document.getElementById('auth-login-form').style.display='none';document.getElementById('auth-signup-form').style.display='block';document.getElementById('auth-error').style.display='none';}
+function showLoginForm(){document.getElementById('auth-signup-form').style.display='none';document.getElementById('auth-login-form').style.display='block';document.getElementById('auth-error').style.display='none';}
+function authError(msg){const el=document.getElementById('auth-error');el.textContent=msg;el.style.display='block';}
+function doLogout(){auth.signOut();}
+
+async function doLogin(){
+  const email=document.getElementById('auth-email').value.trim();
+  const password=document.getElementById('auth-password').value;
+  document.getElementById('auth-error').style.display='none';
+  if(!email||!password){authError('Please enter your email and password.');return;}
+  try{await auth.signInWithEmailAndPassword(email,password);}
+  catch(e){authError('Incorrect email or password.');}
+}
+
+async function doSignup(){
+  const name=document.getElementById('auth-name').value.trim();
+  const email=document.getElementById('auth-email-su').value.trim();
+  const password=document.getElementById('auth-password-su').value;
+  document.getElementById('auth-error').style.display='none';
+  if(!name){authError('Please enter your full name.');return;}
+  if(!email){authError('Please enter your email address.');return;}
+  if(password.length<6){authError('Password must be at least 6 characters.');return;}
+  try{
+    const cred=await auth.createUserWithEmailAndPassword(email,password);
+    const uid=cred.user.uid;
+    const initials=name.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
+    const newId=nextSid++;
+    students.push({id:newId,name,initials,plan:'trial'});
+    await db.collection('users').doc(uid).set({name,email,studentId:newId});
+    saveState();
+    currentStudentId=newId;
+  }catch(e){
+    if(e.code==='auth/email-already-in-use')authError('An account with this email already exists.');
+    else{console.error(e);authError('Could not create account. Please try again.');}
+  }
+}
+
+auth.onAuthStateChanged(async user=>{
+  if(!user){
+    document.getElementById('auth-overlay').style.display='flex';
+    return;
+  }
+  const isAdm=user.email===ADMIN_EMAIL;
+  document.getElementById('mbtn-admin').style.display=isAdm?'':'none';
+  document.getElementById('s-switch-btn').style.display=isAdm?'':'none';
+  if(!isAdm){
+    try{
+      const udoc=await db.collection('users').doc(user.uid).get();
+      if(udoc.exists)currentStudentId=udoc.data().studentId;
+    }catch(e){console.error(e);}
+  }
+  document.getElementById('auth-overlay').style.display='none';
+  if(_appReady){updateWhoBar();isAdm?setMode('student'):renderSCal();}
+});
+
 let _appReady=false;
 db.collection('studio').doc('state').onSnapshot(doc=>{
   const d=doc.data();
@@ -1117,6 +1177,28 @@ db.collection('studio').doc('state').onSnapshot(doc=>{
   if(!_appReady){_appReady=true;updateWhoBar();renderSCal();renderAFinance();}
 });
 </script>
+<div id="auth-overlay" style="display:flex;position:fixed;inset:0;background:var(--surface-0);z-index:200;flex-direction:column;align-items:center;justify-content:center;padding:24px">
+  <div style="width:100%;max-width:360px">
+    <div style="text-align:center;margin-bottom:28px">
+      <div style="font-size:24px;font-weight:500;color:#1a1a2e">DX <span style="color:#9333ea">Pole</span></div>
+      <div style="font-size:13px;color:var(--text-muted);margin-top:4px">Sign in to continue</div>
+    </div>
+    <div id="auth-error" style="display:none;background:#FCEBEB;border:0.5px solid #F7C1C1;border-radius:8px;padding:10px 12px;font-size:12px;color:#A32D2D;margin-bottom:12px"></div>
+    <div id="auth-login-form">
+      <label>Email</label><input type="email" id="auth-email" placeholder="your@email.com">
+      <label>Password</label><input type="password" id="auth-password" placeholder="Password">
+      <button class="btn-full btn-p" onclick="doLogin()">Sign in</button>
+      <button class="btn-full btn-s" onclick="showSignupForm()" style="margin-top:8px">Create account</button>
+    </div>
+    <div id="auth-signup-form" style="display:none">
+      <label>Full name</label><input type="text" id="auth-name" placeholder="e.g. Kezia Nkosi">
+      <label>Email</label><input type="email" id="auth-email-su" placeholder="your@email.com">
+      <label>Password</label><input type="password" id="auth-password-su" placeholder="At least 6 characters">
+      <button class="btn-full btn-p" onclick="doSignup()">Create account</button>
+      <button class="btn-full btn-s" onclick="showLoginForm()" style="margin-top:8px">Back to sign in</button>
+    </div>
+  </div>
+</div>
 <div class="overlay" id="ov-upgrade-student"><div class="sheet">
   <div class="handle"></div>
   <h3>Upgrade student</h3>
