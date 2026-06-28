@@ -352,6 +352,19 @@ label{font-size:11px;color:var(--text-secondary);margin-bottom:3px;display:block
   </div>
 </div></div>
 
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+<script>
+firebase.initializeApp({
+  apiKey:"AIzaSyAbdUG7wuFA35OHEO_y0gmY1udkMmfu9z8",
+  authDomain:"dx-pole.firebaseapp.com",
+  projectId:"dx-pole",
+  storageBucket:"dx-pole.firebasestorage.app",
+  messagingSenderId:"992854106113",
+  appId:"1:992854106113:web:3e0ab495cfec07d3772000"
+});
+const db=firebase.firestore();
+</script>
 <script>
 const DAYS=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
 const MONTHS=['January','February','March','April','May','June','July','August','September','October','November','December'];
@@ -408,34 +421,25 @@ const DEFAULTS={
   nextExpId:4,nextMid:3,nextSid:9,currentStudentId:1,
 };
 
-function loadState(){
-  try{
-    const s=localStorage.getItem('dxpole');
-    if(s) return JSON.parse(s);
-  }catch(e){}
-  return null;
-}
 function saveState(){
-  try{
-    localStorage.setItem('dxpole',JSON.stringify({
-      schedule,nextSchedId,dropinDates,nextDropinId,students,recurringSlots,
-      monthStatus,bookings,makeups,changeRequests,nextChangeReqId,
-      expenses,nextExpId,nextMid,nextSid,currentStudentId,
-    }));
-  }catch(e){}
+  db.collection('studio').doc('state').set({
+    schedule,nextSchedId,dropinDates,nextDropinId,students,recurringSlots,
+    monthStatus,bookings,makeups,changeRequests,nextChangeReqId,
+    expenses,nextExpId,nextMid,nextSid,
+  }).catch(e=>console.error('Save error:',e));
 }
 
-const _s=loadState()||DEFAULTS;
-let schedule=_s.schedule,nextSchedId=_s.nextSchedId;
-let dropinDates=_s.dropinDates,nextDropinId=_s.nextDropinId;
-let students=_s.students;
-let recurringSlots=_s.recurringSlots,monthStatus=_s.monthStatus,bookings=_s.bookings;
-let makeups=_s.makeups,changeRequests=_s.changeRequests,nextChangeReqId=_s.nextChangeReqId;
-let expenses=_s.expenses,nextExpId=_s.nextExpId,nextMid=_s.nextMid,nextSid=_s.nextSid;
-let currentStudentId=_s.currentStudentId,viewMonth=new Date(),selectedDate=null,isAdmin=false;
+let schedule=DEFAULTS.schedule,nextSchedId=DEFAULTS.nextSchedId;
+let dropinDates=DEFAULTS.dropinDates,nextDropinId=DEFAULTS.nextDropinId;
+let students=DEFAULTS.students;
+let recurringSlots=DEFAULTS.recurringSlots,monthStatus=DEFAULTS.monthStatus,bookings=DEFAULTS.bookings;
+let makeups=DEFAULTS.makeups,changeRequests=DEFAULTS.changeRequests,nextChangeReqId=DEFAULTS.nextChangeReqId;
+let expenses=DEFAULTS.expenses,nextExpId=DEFAULTS.nextExpId,nextMid=DEFAULTS.nextMid,nextSid=DEFAULTS.nextSid;
+let currentStudentId=parseInt(localStorage.getItem('dxpole_student'))||1;
+let viewMonth=new Date(),selectedDate=null,isAdmin=false;
 let cancelTarget=null,bookTarget=null,pendingBookType=null,adminBookTarget=null,editSchedId=null,skipRequestTarget=null;
 
-function now(){return new Date(2026,5,27);}
+function now(){return new Date();}
 function pad(n){return String(n).padStart(2,'0');}
 function dateStr(d){return`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;}
 function monthStr(d){return`${d.getFullYear()}-${pad(d.getMonth()+1)}`;}
@@ -879,7 +883,7 @@ function openOv(id){
   document.getElementById(id).classList.add('open');
 }
 function closeOv(id){document.getElementById(id).classList.remove('open');cancelTarget=null;bookTarget=null;adminBookTarget=null;pendingBookType=null;editSchedId=null;skipRequestTarget=null;}
-function switchStudent(id){currentStudentId=id;saveState();updateWhoBar();closeOv('ov-switch');renderSCal();}
+function switchStudent(id){currentStudentId=id;localStorage.setItem('dxpole_student',String(id));updateWhoBar();closeOv('ov-switch');renderSCal();}
 
 
 
@@ -1079,7 +1083,39 @@ function confirmUpgradeStudent(){
   closeOv('ov-upgrade-student');
   renderAStudents();
 }
-updateWhoBar();renderSCal();renderAFinance();
+let _appReady=false;
+db.collection('studio').doc('state').onSnapshot(doc=>{
+  const d=doc.data();
+  if(d){
+    schedule=d.schedule??DEFAULTS.schedule;
+    nextSchedId=d.nextSchedId??DEFAULTS.nextSchedId;
+    dropinDates=d.dropinDates??DEFAULTS.dropinDates;
+    nextDropinId=d.nextDropinId??DEFAULTS.nextDropinId;
+    students=d.students??DEFAULTS.students;
+    recurringSlots=d.recurringSlots??DEFAULTS.recurringSlots;
+    monthStatus=d.monthStatus??DEFAULTS.monthStatus;
+    bookings=d.bookings??DEFAULTS.bookings;
+    makeups=d.makeups??DEFAULTS.makeups;
+    changeRequests=d.changeRequests??DEFAULTS.changeRequests;
+    nextChangeReqId=d.nextChangeReqId??DEFAULTS.nextChangeReqId;
+    expenses=d.expenses??DEFAULTS.expenses;
+    nextExpId=d.nextExpId??DEFAULTS.nextExpId;
+    nextMid=d.nextMid??DEFAULTS.nextMid;
+    nextSid=d.nextSid??DEFAULTS.nextSid;
+  } else {
+    saveState();
+  }
+  if(!_appReady){
+    _appReady=true;
+    updateWhoBar();renderSCal();renderAFinance();
+  } else {
+    updateWhoBar();
+    isAdmin?renderACal():renderSCal();
+  }
+},err=>{
+  console.error('Firestore error:',err);
+  if(!_appReady){_appReady=true;updateWhoBar();renderSCal();renderAFinance();}
+});
 </script>
 <div class="overlay" id="ov-upgrade-student"><div class="sheet">
   <div class="handle"></div>
