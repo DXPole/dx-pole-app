@@ -1,0 +1,1094 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>DX Pole Studio</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
+<style>
+:root{
+  --surface-0:#f5f4f0;--surface-1:#efefeb;--surface-2:#ffffff;
+  --text-primary:#1a1a1a;--text-secondary:#555550;--text-muted:#888780;
+  --border:#e0dfd8;--border-strong:#c8c7c0;
+  --bg-accent:#e6f1fb;--text-accent:#185fa5;--border-accent:#85b7eb;
+  --bg-success:#EAF3DE;--text-success:#3B6D11;
+  --bg-warning:#FAEEDA;--text-warning:#854F0B;
+  --bg-danger:#FCEBEB;--text-danger:#A32D2D;
+  --radius:8px;--font-sans:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+}
+@media(prefers-color-scheme:dark){:root{
+  --surface-0:#1c1c1a;--surface-1:#252523;--surface-2:#2e2e2b;
+  --text-primary:#f0efe8;--text-secondary:#b0afa8;--text-muted:#666660;
+  --border:#3a3a36;--border-strong:#4a4a46;
+}}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--font-sans);background:var(--surface-0);display:flex;justify-content:center;min-height:100vh;padding:0}
+.app{width:100%;max-width:430px;background:var(--surface-0);min-height:100vh;position:relative}
+@media(min-width:500px){body{padding:20px;align-items:flex-start;}.app{border-radius:16px;overflow:hidden;border:0.5px solid var(--border);min-height:auto;box-shadow:0 4px 24px rgba(0,0,0,0.08)}}
+.header{background:#1a1a2e;padding:13px 16px;display:flex;align-items:center;justify-content:space-between}
+.logo{color:#e8c5f5;font-size:17px;font-weight:500}.logo span{color:#c084e0}
+.header-sub{color:#a89bb5;font-size:11px;margin-top:1px}
+.mode-toggle{display:flex;gap:5px}
+.mode-btn{font-size:11px;padding:4px 9px;border-radius:20px;border:0.5px solid #3d3d6b;background:none;color:#a89bb5;cursor:pointer;font-weight:500}
+.mode-btn.active{background:#9333ea;color:white;border-color:#9333ea}
+.nav{display:flex;border-bottom:0.5px solid var(--border);background:var(--surface-2)}
+.nav-btn{flex:1;padding:8px 2px;font-size:10px;color:var(--text-muted);background:none;border:none;cursor:pointer;border-bottom:2px solid transparent;display:flex;flex-direction:column;align-items:center;gap:2px;-webkit-tap-highlight-color:transparent}
+.nav-btn i{font-size:16px}
+.nav-btn.active{color:#9333ea;border-bottom-color:#9333ea;font-weight:500}
+.screen{display:none;padding:12px}
+.screen.active{display:block}
+.cal-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.cal-month{font-size:15px;font-weight:500;color:var(--text-primary)}
+.cal-nav{background:none;border:0.5px solid var(--border);border-radius:6px;padding:4px 8px;cursor:pointer;color:var(--text-secondary);font-size:13px}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px}
+.cal-day-label{text-align:center;font-size:10px;color:var(--text-muted);padding:4px 0;font-weight:500}
+.cal-cell{min-height:42px;border-radius:6px;padding:3px;background:var(--surface-1);border:0.5px solid transparent;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.cal-cell:hover{border-color:var(--border-strong)}
+.cal-cell.other-month{opacity:0.3}
+.cal-cell.today{border-color:#9333ea}
+.cal-cell.selected{outline:2px solid #9333ea}
+.cal-cell.skipped-month{background:var(--surface-0);opacity:0.5}
+.cal-date{font-size:11px;color:var(--text-secondary);font-weight:500}
+.cal-cell.today .cal-date{color:#9333ea}
+.cal-dots{display:flex;gap:2px;flex-wrap:wrap;margin-top:2px}
+.cal-dot{width:5px;height:5px;border-radius:50%}
+.dot-class{background:#9333ea}.dot-dropin{background:#EF9F27}.dot-confirmed{background:#639922}.dot-tentative{background:#B4B2A9}
+.cal-legend{display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap}
+.leg-item{display:flex;align-items:center;gap:4px;font-size:10px;color:var(--text-muted)}
+.leg-dot{width:7px;height:7px;border-radius:50%}
+.month-card{border-radius:10px;padding:11px 13px;margin-bottom:8px;display:flex;align-items:center;gap:10px;border:0.5px solid var(--border)}
+.month-card.paid{background:#EAF3DE;border-color:#C0DD97}
+.month-card.due{background:#FAEEDA;border-color:#FAC775}
+.month-card.skipped{background:var(--surface-1);border-color:var(--border)}
+.month-card.requested{background:#EEEDFE;border-color:#AFA9EC}
+.month-card.tentative{background:var(--surface-1);border-color:var(--border)}
+.month-icon{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0}
+.mi-paid{background:#C0DD97;color:#3B6D11}.mi-due{background:#FAC775;color:#854F0B}
+.mi-skipped{background:var(--surface-0);color:var(--text-muted)}.mi-requested{background:#CECBF6;color:#3C3489}
+.mi-tentative{background:var(--surface-0);color:var(--text-muted)}
+.month-label{font-size:14px;font-weight:500;color:var(--text-primary)}
+.month-sub{font-size:11px;color:var(--text-muted);margin-top:1px}
+.month-action{margin-left:auto;flex-shrink:0}
+.status-pill{font-size:10px;padding:3px 9px;border-radius:20px;font-weight:500;display:inline-block}
+.sp-paid{background:#EAF3DE;color:#3B6D11}.sp-due{background:#FAEEDA;color:#854F0B}
+.sp-skipped{background:var(--surface-0);color:var(--text-muted);border:0.5px solid var(--border)}
+.sp-requested{background:#EEEDFE;color:#534AB7}.sp-tentative{background:var(--surface-0);color:var(--text-muted);border:0.5px solid var(--border)}
+.action-sm{font-size:11px;padding:5px 9px;border-radius:6px;cursor:pointer;font-weight:500;border:none;white-space:nowrap}
+.a-purple{background:#9333ea;color:white}.a-gray{background:var(--surface-0);color:var(--text-secondary);border:0.5px solid var(--border)}
+.a-green{background:#639922;color:white}.a-amber{background:#BA7517;color:white}.a-orange{background:#EF9F27;color:white}
+.a-red{color:#e24b4a;background:none;border:0.5px solid #e24b4a}
+.pay-summary{background:#1a1a2e;border-radius:12px;padding:13px;margin-bottom:12px}
+.ps-title{font-size:11px;color:#a89bb5;margin-bottom:4px}
+.ps-slot{font-size:16px;font-weight:500;color:#e8c5f5}
+.ps-sub{font-size:11px;color:#7a6d8a;margin-top:2px}
+.class-card{background:var(--surface-2);border:0.5px solid var(--border);border-radius:10px;padding:11px;margin-bottom:8px}
+.class-card.my-confirmed{border-color:#9FE1CB;background:#EAF3DE}
+.class-card.my-tentative{border-color:#B4B2A9;background:var(--surface-1)}
+.class-card.my-dropin{border-color:#EF9F27;background:#FAEEDA}
+.class-day{font-size:10px;color:#9333ea;font-weight:500;text-transform:uppercase;letter-spacing:0.5px}
+.class-time{font-size:18px;font-weight:500;color:var(--text-primary)}
+.class-row{display:flex;justify-content:space-between;align-items:flex-start;gap:8px}
+.class-meta{font-size:11px;color:var(--text-muted);margin-top:1px}
+.cap-bar{height:3px;background:var(--border);border-radius:2px;margin-top:6px;overflow:hidden}
+.cap-fill{height:100%;border-radius:2px}
+.action-btn{font-size:11px;padding:6px 10px;border-radius:7px;border:0.5px solid #9333ea;color:#9333ea;background:none;cursor:pointer;font-weight:500;white-space:nowrap;flex-shrink:0}
+.action-btn.cancel{border-color:#e24b4a;color:#e24b4a}
+.action-btn.dropin-btn{border-color:#BA7517;color:#BA7517}
+.action-btn.disabled{border-color:var(--border);color:var(--text-muted);cursor:default;opacity:0.5}
+.note{font-size:10px;color:var(--text-muted);margin-top:5px;display:flex;align-items:center;gap:3px}
+.note.warn{color:#e24b4a}.note.amber{color:#854F0B}
+.tag{font-size:10px;padding:2px 6px;border-radius:20px;font-weight:500;display:inline-block;margin-top:2px}
+.tag-mem{background:#EEEDFE;color:#534AB7}.tag-drop{background:#FAEEDA;color:#854F0B}
+.tag-confirmed{background:#EAF3DE;color:#3B6D11}.tag-makeup{background:#EAF3DE;color:#3B6D11}
+.tag-tentative{background:var(--surface-0);color:var(--text-muted);border:0.5px solid var(--border)}
+.roster{margin-top:8px;border-top:0.5px solid var(--border);padding-top:8px}
+.roster-row{display:flex;align-items:center;gap:7px;padding:5px 0;border-bottom:0.5px solid var(--border)}
+.roster-row:last-child{border-bottom:none}
+.roster-av{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:500;flex-shrink:0}
+.ra-confirmed{background:#EAF3DE;color:#3B6D11}.ra-tentative{background:var(--surface-0);color:var(--text-muted);border:0.5px solid var(--border)}
+.ra-due{background:#FAEEDA;color:#854F0B}.ra-skipped{background:var(--surface-0);color:var(--text-muted);opacity:0.5}
+.roster-name{font-size:12px;color:var(--text-primary);flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.section-hd{font-size:13px;font-weight:500;color:var(--text-secondary);margin-bottom:8px;display:flex;justify-content:space-between;align-items:center}
+.add-btn{font-size:12px;color:#9333ea;background:none;border:none;cursor:pointer;font-weight:500}
+.student-row{display:flex;align-items:center;gap:9px;padding:8px 0;border-bottom:0.5px solid var(--border)}
+.student-row:last-child{border-bottom:none}
+.av{width:32px;height:32px;border-radius:50%;background:#EEEDFE;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:500;color:#7F77DD;flex-shrink:0}
+.sname{font-size:13px;color:var(--text-primary);font-weight:500}
+.splan{font-size:11px;color:var(--text-muted)}
+.sched-row{display:flex;align-items:center;gap:8px;padding:9px 0;border-bottom:0.5px solid var(--border)}
+.sched-row:last-child{border-bottom:none}
+.edit-btn{font-size:13px;color:#9333ea;background:none;border:none;cursor:pointer;padding:2px}
+.del-btn{font-size:13px;color:#e24b4a;background:none;border:none;cursor:pointer;padding:2px}
+.day-section{margin-bottom:12px}
+.day-section-title{font-size:11px;font-weight:500;color:var(--text-muted);margin-bottom:5px;padding-bottom:3px;border-bottom:0.5px solid var(--border)}
+.fin-summary{background:#1a1a2e;border-radius:12px;padding:14px;margin-bottom:12px}
+.fin-title{font-size:11px;color:#a89bb5;margin-bottom:5px}
+.fin-val{font-size:24px;font-weight:500;color:#e8c5f5}
+.fin-sub{font-size:11px;color:#7a6d8a;margin-top:2px}
+.fin-row{display:flex;justify-content:space-between;margin-top:8px;padding-top:8px;border-top:0.5px solid #2d2d45;flex-wrap:wrap;gap:6px}
+.fin-item{font-size:11px;color:#a89bb5}
+.fin-item strong{display:block;font-size:13px;color:#c084e0;font-weight:500}
+.fee-card{background:var(--surface-2);border:0.5px solid var(--border);border-radius:10px;padding:11px 13px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center}
+.fee-name{font-size:13px;font-weight:500;color:var(--text-primary)}
+.fee-amt{font-size:17px;font-weight:500;color:#9333ea}
+.exp-row{display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:0.5px solid var(--border)}
+.exp-row:last-child{border-bottom:none}
+.exp-type{font-size:10px;padding:2px 6px;border-radius:20px;font-weight:500}
+.exp-recurring{background:#EEEDFE;color:#534AB7}.exp-oneoff{background:#EAF3DE;color:#3B6D11}
+.overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:100;align-items:flex-end;justify-content:center}
+.overlay.open{display:flex}
+.sheet{background:var(--surface-2);border-radius:16px 16px 0 0;padding:18px;width:100%;max-width:430px;border:0.5px solid var(--border);max-height:88vh;overflow-y:auto}
+.handle{width:36px;height:4px;background:var(--border-strong);border-radius:2px;margin:0 auto 14px}
+.sheet h3{font-size:15px;font-weight:500;color:var(--text-primary);margin-bottom:3px}
+.sheet .sub{font-size:12px;color:var(--text-muted);margin-bottom:12px}
+.info-box{border-radius:8px;padding:10px 11px;font-size:12px;margin-bottom:12px;display:flex;gap:7px;align-items:flex-start}
+.info-box.purple{background:#EEEDFE;color:#534AB7}.info-box.amber{background:#FAEEDA;color:#854F0B}
+.info-box.green{background:#EAF3DE;color:#3B6D11}.info-box.gray{background:var(--surface-1);color:var(--text-secondary);border:0.5px solid var(--border)}
+.ci{background:var(--surface-1);border-radius:8px;padding:10px;margin-bottom:12px;font-size:12px}
+.ci strong{display:block;font-weight:500;color:var(--text-primary);margin-bottom:2px}
+.ci span{color:var(--text-muted)}
+.btn-row{display:flex;gap:8px}
+.btn-p{flex:1;padding:11px;border-radius:8px;background:#9333ea;color:white;border:none;font-size:13px;cursor:pointer;font-weight:500}
+.btn-amber{flex:1;padding:11px;border-radius:8px;background:#BA7517;color:white;border:none;font-size:13px;cursor:pointer;font-weight:500}
+.btn-s{flex:1;padding:11px;border-radius:8px;border:0.5px solid var(--border-strong);color:var(--text-primary);background:var(--surface-2);font-size:13px;cursor:pointer}
+.btn-d{flex:1;padding:11px;border-radius:8px;border:0.5px solid #e24b4a;color:#e24b4a;background:none;font-size:13px;cursor:pointer;font-weight:500}
+.btn-full{width:100%;padding:11px;border-radius:8px;font-size:13px;cursor:pointer;font-weight:500;margin-top:6px}
+input,select{width:100%;padding:8px 11px;border-radius:8px;border:0.5px solid var(--border-strong);background:var(--surface-1);color:var(--text-primary);font-size:13px;margin-bottom:9px;font-family:var(--font-sans)}
+label{font-size:11px;color:var(--text-secondary);margin-bottom:3px;display:block}
+.empty{text-align:center;padding:24px 0;color:var(--text-muted);font-size:12px}
+.empty i{font-size:28px;display:block;margin-bottom:6px;color:var(--border-strong)}
+.who-bar{background:var(--surface-2);border:0.5px solid var(--border);border-radius:10px;padding:9px 13px;margin-bottom:10px;display:flex;align-items:center;gap:9px}
+.who-avatar{width:30px;height:30px;border-radius:50%;background:#EEEDFE;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:500;color:#7F77DD;flex-shrink:0}
+.switch-link{margin-left:auto;font-size:11px;color:#9333ea;background:none;border:none;cursor:pointer}
+.plan-usage{background:var(--surface-1);border-radius:8px;padding:9px 11px;margin-bottom:10px;font-size:12px}
+.usage-bar-wrap{height:3px;background:var(--border);border-radius:2px;margin-top:5px;overflow:hidden}
+.usage-bar{height:100%;border-radius:2px}
+.skip-req-banner{background:#EEEDFE;border:0.5px solid #AFA9EC;border-radius:8px;padding:9px 11px;margin-bottom:8px;display:flex;align-items:center;gap:8px;font-size:12px;color:#534AB7}
+.class-summary{display:flex;gap:5px;margin-top:6px;flex-wrap:wrap}
+.sum-chip{font-size:10px;padding:2px 8px;border-radius:20px;display:flex;align-items:center;gap:3px}
+.sum-confirmed{background:#EAF3DE;color:#3B6D11}.sum-tentative{background:var(--surface-0);color:var(--text-muted);border:0.5px solid var(--border)}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="header">
+    <div><div class="logo">DX <span>Pole</span></div><div class="header-sub" id="header-sub">Student view</div></div>
+    <div class="mode-toggle">
+      <button class="mode-btn active" onclick="setMode('student')" id="mbtn-student">Student</button>
+      <button class="mode-btn" onclick="setMode('admin')" id="mbtn-admin">Admin</button>
+    </div>
+  </div>
+
+  <div id="student-app">
+    <div style="padding:12px 12px 0">
+      <div class="who-bar">
+        <div class="who-avatar" id="s-avatar">KN</div>
+        <div><div style="font-size:13px;font-weight:500;color:var(--text-primary)" id="s-name">Kezia Nkosi</div><div style="font-size:11px;color:var(--text-muted)" id="s-plan"></div></div>
+        <button class="switch-link" onclick="openOv('ov-switch')">Switch <i class="ti ti-chevron-down" style="font-size:10px"></i></button>
+      </div>
+    </div>
+    <div class="nav" id="snav">
+      <button class="nav-btn active" onclick="sshow('s-cal')" id="snav-s-cal"><i class="ti ti-calendar"></i>Calendar</button>
+      <button class="nav-btn" onclick="sshow('s-myclasses')" id="snav-s-myclasses"><i class="ti ti-bookmark"></i>My classes</button>
+      <button class="nav-btn" onclick="sshow('s-payments')" id="snav-s-payments"><i class="ti ti-credit-card"></i>Payments</button>
+      <button class="nav-btn" onclick="sshow('s-makeups')" id="snav-s-makeups"><i class="ti ti-refresh"></i>Make-ups</button>
+    </div>
+    <div class="screen active" id="screen-s-cal">
+      <div class="cal-header">
+        <button class="cal-nav" onclick="changeMonth(-1)"><i class="ti ti-chevron-left"></i></button>
+        <span class="cal-month" id="s-cal-month"></span>
+        <button class="cal-nav" onclick="changeMonth(1)"><i class="ti ti-chevron-right"></i></button>
+      </div>
+      <div class="cal-legend">
+        <div class="leg-item"><div class="leg-dot" style="background:#9333ea"></div>Class</div>
+        <div class="leg-item"><div class="leg-dot" style="background:#EF9F27"></div>Drop-in</div>
+        <div class="leg-item"><div class="leg-dot" style="background:#639922"></div>Confirmed</div>
+        <div class="leg-item"><div class="leg-dot" style="background:#B4B2A9"></div>Tentative</div>
+      </div>
+      <div class="cal-grid" id="s-cal-grid"></div>
+      <div id="s-day-classes" style="margin-top:12px"></div>
+    </div>
+    <div class="screen" id="screen-s-myclasses"><div id="s-myclasses-list"></div></div>
+    <div class="screen" id="screen-s-payments"><div id="s-payment-list"></div></div>
+    <div class="screen" id="screen-s-makeups"><div id="s-mu-list"></div></div>
+    <div class="screen" id="screen-s-fees">
+      <div style="font-size:12px;color:var(--text-muted);margin-bottom:10px">Pay via EFT or cash. Contact your instructor to confirm.</div>
+      <div class="fee-card"><div><div class="fee-name">1 class/week</div></div><div class="fee-amt">R540</div></div>
+      <div class="fee-card"><div><div class="fee-name">2 classes/week</div></div><div class="fee-amt">R945</div></div>
+      <div class="fee-card"><div><div class="fee-name">Drop-in</div></div><div class="fee-amt">R160</div></div>
+      <div class="fee-card"><div><div class="fee-name">Trial class</div></div><div class="fee-amt">R50</div></div>
+    </div>
+  </div>
+
+  <div id="admin-app" style="display:none">
+    <div class="nav" id="anav">
+      <button class="nav-btn active" onclick="ashow('a-cal')" id="anav-a-cal"><i class="ti ti-calendar"></i>Calendar</button>
+      <button class="nav-btn" onclick="ashow('a-students')" id="anav-a-students"><i class="ti ti-users"></i>Students</button>
+      <button class="nav-btn" onclick="ashow('a-payments')" id="anav-a-payments"><i class="ti ti-credit-card"></i>Payments</button>
+      <button class="nav-btn" onclick="ashow('a-schedule')" id="anav-a-schedule"><i class="ti ti-clock"></i>Schedule</button>
+      <button class="nav-btn" onclick="ashow('a-finance')" id="anav-a-finance"><i class="ti ti-chart-bar"></i>Finance</button>
+    </div>
+    <div class="screen active" id="screen-a-cal">
+      <div class="cal-header">
+        <button class="cal-nav" onclick="changeMonth(-1)"><i class="ti ti-chevron-left"></i></button>
+        <span class="cal-month" id="a-cal-month"></span>
+        <button class="cal-nav" onclick="changeMonth(1)"><i class="ti ti-chevron-right"></i></button>
+      </div>
+      <div class="cal-legend">
+        <div class="leg-item"><div class="leg-dot" style="background:#9333ea"></div>Class</div>
+        <div class="leg-item"><div class="leg-dot" style="background:#EF9F27"></div>Drop-in</div>
+        <div class="leg-item"><div class="leg-dot" style="background:#639922"></div>Confirmed</div>
+        <div class="leg-item"><div class="leg-dot" style="background:#B4B2A9"></div>Tentative</div>
+      </div>
+      <div class="cal-grid" id="a-cal-grid"></div>
+      <div id="a-day-classes" style="margin-top:12px"></div>
+    </div>
+    <div class="screen" id="screen-a-students">
+      <div class="section-hd">Students <span style="display:flex;gap:8px"><button class="add-btn" onclick="openAddMakeup()"><i class="ti ti-refresh"></i> Make-up</button><button class="add-btn" onclick="openOv('ov-add-student')"><i class="ti ti-plus"></i> Add</button></span></div>
+      <div id="a-student-list"></div>
+    </div>
+    <div class="screen" id="screen-a-payments">
+      <div class="section-hd">Monthly payment tracker <button class="add-btn" onclick="openAddMakeup()"><i class="ti ti-plus"></i> Add make-up</button></div>
+      <div id="skip-requests-banner"></div>
+      <div id="a-payment-list"></div>
+    </div>
+    <div class="screen" id="screen-a-schedule">
+      <div class="section-hd">Recurring schedule <button class="add-btn" onclick="openAddClass()"><i class="ti ti-plus"></i> Add</button></div>
+      <div id="a-sched-list"></div>
+      <div class="section-hd" style="margin-top:16px">Drop-in dates <button class="add-btn" onclick="openOv('ov-add-dropin-date')"><i class="ti ti-plus"></i> Add</button></div>
+      <div id="a-dropin-list"></div>
+    </div>
+    <div class="screen" id="screen-a-finance">
+      <div id="a-finance-content"></div>
+      <div class="section-hd">Expenses <button class="add-btn" onclick="openOv('ov-add-expense')"><i class="ti ti-plus"></i> Add</button></div>
+      <div id="a-expense-list"></div>
+      <div class="section-hd" style="margin-top:14px">Fee schedule</div>
+      <div class="fee-card"><div><div class="fee-name">1 class/week</div></div><div class="fee-amt">R540</div></div>
+      <div class="fee-card"><div><div class="fee-name">2 classes/week</div></div><div class="fee-amt">R945</div></div>
+      <div class="fee-card"><div><div class="fee-name">Drop-in</div></div><div class="fee-amt">R160</div></div>
+      <div class="fee-card"><div><div class="fee-name">Trial</div></div><div class="fee-amt">R50</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- OVERLAYS -->
+<div class="overlay" id="ov-book"><div class="sheet">
+  <div class="handle"></div><h3 id="bk-title">Book class</h3><p class="sub" id="bk-sub"></p>
+  <div class="ci" id="bk-ci"></div>
+  <div class="info-box" id="bk-info-box"><i class="ti ti-info-circle" style="font-size:14px;flex-shrink:0"></i><span id="bk-info-text"></span></div>
+  <div class="btn-row"><button class="btn-s" onclick="closeOv('ov-book')">Back</button><button id="bk-confirm-btn" class="btn-p" onclick="confirmBook()">Confirm</button></div>
+</div></div>
+<div class="overlay" id="ov-cancel"><div class="sheet">
+  <div class="handle"></div><h3>Cancel booking</h3><p class="sub">Cancel your spot in this class.</p>
+  <div class="ci" id="cx-ci"></div><div id="cx-msg"></div>
+  <div class="btn-row"><button class="btn-s" onclick="closeOv('ov-cancel')">Keep it</button><button class="btn-d" onclick="confirmCancel()">Cancel booking</button></div>
+</div></div>
+<div class="overlay" id="ov-skip-request"><div class="sheet">
+  <div class="handle"></div><h3>Request month off</h3>
+  <p class="sub">Your spot will be held as tentative and no payment due once approved.</p>
+  <div class="ci" id="sr-ci"></div>
+  <div class="info-box gray"><i class="ti ti-info-circle" style="font-size:14px;flex-shrink:0"></i>Your instructor will confirm the request. Until then your classes remain tentative.</div>
+  <div class="btn-row"><button class="btn-s" onclick="closeOv('ov-skip-request')">Cancel</button><button class="btn-p" onclick="confirmSkipRequest()">Send request</button></div>
+</div></div>
+<div class="overlay" id="ov-admin-book"><div class="sheet">
+  <div class="handle"></div><h3 id="abk-title">Book student</h3><p class="sub" id="abk-sub"></p>
+  <div class="ci" id="abk-ci"></div>
+  <label>Student</label><select id="abk-student"></select>
+  <label>Booking type</label>
+  <select id="abk-type"><option value="membership">Membership</option><option value="dropin">Drop-in (R160)</option><option value="trial">Trial (R50)</option><option value="makeup">Make-up credit</option></select>
+  <div class="btn-row"><button class="btn-s" onclick="closeOv('ov-admin-book')">Cancel</button><button class="btn-p" onclick="confirmAdminBook()">Book</button></div>
+</div></div>
+<div class="overlay" id="ov-add-class"><div class="sheet">
+  <div class="handle"></div><h3 id="ac-title">Add recurring class</h3><p class="sub">Appears every week on this day.</p>
+  <label>Day</label>
+  <select id="ac-day"><option>Monday</option><option>Tuesday</option><option>Wednesday</option><option>Thursday</option><option>Friday</option><option>Saturday</option><option>Sunday</option></select>
+  <label>Time</label><input type="time" id="ac-time" value="18:00">
+  <label>Capacity</label><input type="number" id="ac-cap" value="5" min="1" max="30">
+  <div class="btn-row"><button class="btn-s" onclick="closeOv('ov-add-class')">Cancel</button><button class="btn-p" onclick="confirmAddClass()">Save</button></div>
+</div></div>
+<div class="overlay" id="ov-add-dropin-date"><div class="sheet">
+  <div class="handle"></div><h3>Add drop-in date</h3><p class="sub">A one-off class on a specific date.</p>
+  <label>Date</label><input type="date" id="di-date">
+  <label>Time</label><input type="time" id="di-time" value="18:00">
+  <label>Capacity</label><input type="number" id="di-cap" value="5" min="1" max="30">
+  <div class="btn-row"><button class="btn-s" onclick="closeOv('ov-add-dropin-date')">Cancel</button><button class="btn-p" onclick="confirmAddDropin()">Add</button></div>
+</div></div>
+<div class="overlay" id="ov-add-student"><div class="sheet">
+  <div class="handle"></div><h3>Add student</h3><p class="sub">New student added to the system.</p>
+  <label>Full name</label><input type="text" id="ns-name" placeholder="e.g. Lerato Mokoena">
+  <label>Plan</label>
+  <select id="ns-plan"><option value="trial">Trial class — R50</option><option value="1x">1 class/week — R540/mo</option><option value="2x">2 classes/week — R945/mo</option><option value="dropin">Drop-in only</option></select>
+  <label>Payment</label><select id="ns-pay"><option value="paid">Paid</option><option value="due">Due</option></select>
+  <button class="btn-full btn-p" onclick="confirmAddStudent()">Add student</button>
+  <button class="btn-full btn-s" onclick="closeOv('ov-add-student')" style="margin-top:6px">Cancel</button>
+</div></div>
+<div class="overlay" id="ov-add-expense"><div class="sheet">
+  <div class="handle"></div><h3>Add expense</h3><p class="sub">Tracked in your monthly finance summary.</p>
+  <label>Name</label><input type="text" id="exp-name" placeholder="e.g. Pole equipment">
+  <label>Amount (R)</label><input type="number" id="exp-amt" placeholder="e.g. 500">
+  <label>Type</label><select id="exp-type"><option value="recurring">Recurring (monthly)</option><option value="oneoff">One-off</option></select>
+  <div class="btn-row"><button class="btn-s" onclick="closeOv('ov-add-expense')">Cancel</button><button class="btn-p" onclick="confirmAddExpense()">Add</button></div>
+</div></div>
+<div class="overlay" id="ov-switch"><div class="sheet">
+  <div class="handle"></div><h3>Switch student</h3><p class="sub">View as a different student.</p>
+  <div id="switch-list"></div>
+  <button class="btn-full btn-s" onclick="closeOv('ov-switch')" style="margin-top:10px">Cancel</button>
+</div></div>
+
+<div class="overlay" id="ov-confirm-delete"><div class="sheet">
+  <div class="handle"></div>
+  <h3>Remove student</h3>
+  <p class="sub">This will permanently delete the student and all their data.</p>
+  <div style="background:#FCEBEB;border:0.5px solid #F7C1C1;border-radius:10px;padding:13px;margin-bottom:14px;display:flex;align-items:center;gap:10px">
+    <div id="del-av" style="width:36px;height:36px;border-radius:50%;background:#F7C1C1;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:500;color:#A32D2D;flex-shrink:0"></div>
+    <div><div id="del-name" style="font-size:14px;font-weight:500;color:#A32D2D"></div><div id="del-detail" style="font-size:12px;color:#e24b4a;margin-top:2px"></div></div>
+  </div>
+  <div style="background:#FAEEDA;border-radius:8px;padding:11px 12px;font-size:12px;color:#854F0B;margin-bottom:14px;display:flex;gap:7px;align-items:flex-start">
+    <i class="ti ti-alert-triangle" style="font-size:15px;flex-shrink:0"></i>All bookings, payment history and make-up credits for this student will be deleted. This cannot be undone.
+  </div>
+  <div style="display:flex;gap:8px">
+    <button class="btn-s" style="flex:1;padding:11px;border-radius:8px;border:0.5px solid var(--border-strong);color:var(--text-primary);background:none;font-size:13px;cursor:pointer" onclick="closeOv('ov-confirm-delete')">Keep student</button>
+    <button style="flex:1;padding:11px;border-radius:8px;background:#e24b4a;color:white;border:none;font-size:13px;cursor:pointer;font-weight:500" onclick="confirmDeleteStudent()">Delete permanently</button>
+  </div>
+</div></div>
+
+<script>
+const DAYS=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+const MONTHS=['January','February','March','April','May','June','July','August','September','October','November','December'];
+const PLAN_ALLOWANCE={'1x':1,'2x':2,'dropin':0,'trial':0};
+const PLAN_LABEL={'1x':'1 class/week · R540/mo','2x':'2 classes/week · R945/mo','dropin':'Drop-in only','trial':'Trial class · R50'};
+const PLAN_FEE={'1x':540,'2x':945,'dropin':0,'trial':50};
+
+let schedule=[
+  {id:1,day:'Monday',time:'17:45',cap:5},
+  {id:2,day:'Monday',time:'19:00',cap:5},
+  {id:3,day:'Wednesday',time:'18:30',cap:5},
+  {id:4,day:'Thursday',time:'17:45',cap:5},
+  {id:5,day:'Thursday',time:'19:00',cap:5},
+];
+let nextSchedId=6;
+let dropinDates=[
+  {id:101,date:'2026-07-09',time:'19:00',cap:5},
+  {id:102,date:'2026-07-23',time:'17:00',cap:5},
+];
+let nextDropinId=103;
+let students=[
+  {id:1,name:'Kezia Nkosi',initials:'KN',plan:'2x'},
+  {id:2,name:'Tamara Ellis',initials:'TE',plan:'1x'},
+  {id:3,name:'Priya Pillay',initials:'PP',plan:'1x'},
+  {id:4,name:'Jade van Wyk',initials:'JV',plan:'2x'},
+  {id:5,name:'Monique Dlamini',initials:'MD',plan:'dropin'},
+  {id:6,name:'Sasha Botha',initials:'SB',plan:'2x'},
+  {id:7,name:'Lena Ferreira',initials:'LF',plan:'1x'},
+  {id:8,name:'Aisha Omar',initials:'AO',plan:'2x'},
+];
+let recurringSlots={
+  1:{schedId:1},2:{schedId:1},4:{schedId:5},6:{schedId:5},7:{schedId:3},8:{schedId:2},
+};
+let monthStatus={
+  1:{'2026-05':'paid','2026-06':'paid','2026-07':'due','2026-08':'tentative','2026-09':'tentative'},
+  2:{'2026-05':'paid','2026-06':'paid','2026-07':'tentative','2026-08':'tentative','2026-09':'tentative'},
+  3:{'2026-05':'paid','2026-06':'due','2026-07':'tentative','2026-08':'tentative','2026-09':'tentative'},
+  4:{'2026-05':'paid','2026-06':'paid','2026-07':'paid','2026-08':'tentative','2026-09':'tentative'},
+  6:{'2026-05':'paid','2026-06':'paid','2026-07':'skip_requested','2026-08':'tentative','2026-09':'tentative'},
+  7:{'2026-05':'paid','2026-06':'paid','2026-07':'due','2026-08':'skipped','2026-09':'tentative'},
+  8:{'2026-05':'paid','2026-06':'due','2026-07':'tentative','2026-08':'tentative','2026-09':'tentative'},
+};
+let bookings={'dropin-101':[{studentId:5,type:'dropin',status:'confirmed'}]};
+let makeups=[
+  {id:1,studentId:3,studentName:'Priya Pillay',classDay:'Monday',classTime:'17:45',expiry:'2026-07-15'},
+  {id:2,studentId:8,studentName:'Aisha Omar',classDay:'Thursday',classTime:'19:00',expiry:'2026-08-02'},
+];
+// changeRequests: [{id, studentId, fromSchedId, toSchedId, requestedAt}]
+let changeRequests=[];
+let nextChangeReqId=1;
+let expenses=[
+  {id:1,name:'Studio rent',amount:3500,type:'recurring'},
+  {id:2,name:'Instructor fees',amount:1000,type:'recurring'},
+  {id:3,name:'Pole grip chalk',amount:180,type:'oneoff'},
+];
+let nextExpId=4,nextMid=3,nextSid=9;
+let currentStudentId=1,viewMonth=new Date(2026,5,1),selectedDate=null,isAdmin=false;
+let cancelTarget=null,bookTarget=null,pendingBookType=null,adminBookTarget=null,editSchedId=null,skipRequestTarget=null;
+
+function now(){return new Date(2026,5,27);}
+function pad(n){return String(n).padStart(2,'0');}
+function dateStr(d){return`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;}
+function monthStr(d){return`${d.getFullYear()}-${pad(d.getMonth()+1)}`;}
+function monthLabel(ms){const[y,m]=ms.split('-');return`${MONTHS[parseInt(m)-1]} ${y}`;}
+function todayStr(){return dateStr(now());}
+function getStudent(id){return students.find(s=>s.id===id);}
+function curStudent(){return getStudent(currentStudentId);}
+function getMonthStatus(sid,ms){return(monthStatus[sid]||{})[ms]||'tentative';}
+function getOldestMakeup(studentId){
+  const mine=makeups.filter(m=>m.studentId===studentId&&!m.used).sort((a,b)=>a.expiry.localeCompare(b.expiry));
+  return mine.length?mine[0]:null;
+}
+function setMonthStatus(sid,ms,st){if(!monthStatus[sid])monthStatus[sid]={};monthStatus[sid][ms]=st;}
+function isCancellable(ds){const today=todayStr();if(ds>today)return true;if(ds<today)return false;const t=now(),c=new Date(t);c.setHours(12,0,0,0);return t<c;}
+function getTrackingMonths(){const months=[],base=now();for(let i=-2;i<=3;i++){const d=new Date(base.getFullYear(),base.getMonth()+i,1);months.push(monthStr(d));}return months;}
+function capColor(n,cap){if(n>=cap)return'#e24b4a';if(n>=cap*0.7)return'#EF9F27';return'#9333ea';}
+
+function getEffectiveBookings(schedId,dateS){
+  const key=`${schedId}-${dateS}`,result=[],seen=new Set();
+  (bookings[key]||[]).forEach(b=>{result.push({...b,status:b.status||'confirmed',source:'oneoff'});seen.add(b.studentId);});
+  Object.entries(recurringSlots).forEach(([sid,slot])=>{
+    if(slot.schedId!==schedId)return;
+    const studentId=parseInt(sid);if(seen.has(studentId))return;
+    const ms=monthStr(new Date(dateS)),st=getMonthStatus(studentId,ms);
+    if(st==='skipped')return;
+    const bookSt=(st==='paid'||st==='due')?'confirmed':'tentative';
+    if(dateS>=todayStr()||st==='paid'||st==='due'){result.push({studentId,type:'membership',status:bookSt,monthStatus:st,source:'recurring'});seen.add(studentId);}
+  });
+  return result;
+}
+
+function classesOnDate(dateS){
+  const d=new Date(dateS),dayName=DAYS[d.getDay()];
+  const recurring=schedule.filter(sc=>sc.day===dayName).map(sc=>({key:`${sc.id}-${dateS}`,type:'recurring',sc,dateS,time:sc.time,cap:sc.cap,schedId:sc.id}));
+  const dropins=dropinDates.filter(di=>di.date===dateS).map(di=>({key:`dropin-${di.id}`,type:'dropin',di,dateS,time:di.time,cap:di.cap}));
+  return[...recurring,...dropins].sort((a,b)=>a.time.localeCompare(b.time));
+}
+
+function renderCal(gridId,monthLabelId,onCellClick){
+  const year=viewMonth.getFullYear(),month=viewMonth.getMonth();
+  document.getElementById(monthLabelId).textContent=`${MONTHS[month]} ${year}`;
+  const grid=document.getElementById(gridId),dayLabels=['Mo','Tu','We','Th','Fr','Sa','Su'];
+  let html=dayLabels.map(l=>`<div class="cal-day-label">${l}</div>`).join('');
+  const first=new Date(year,month,1),startOffset=(first.getDay()+6)%7;
+  const daysInMonth=new Date(year,month+1,0).getDate(),total=Math.ceil((startOffset+daysInMonth)/7)*7,today=todayStr();
+  for(let i=0;i<total;i++){
+    const cellDate=new Date(year,month,1-startOffset+i),ds=dateStr(cellDate),inMonth=cellDate.getMonth()===month;
+    const classes=classesOnDate(ds);
+    const hasRecurring=classes.some(c=>c.type==='recurring'),hasDropin=classes.some(c=>c.type==='dropin');
+    let hasConfirmed=false,hasTentative=false;
+    if(isAdmin){
+      classes.filter(c=>c.type==='recurring').forEach(c=>{getEffectiveBookings(c.schedId,ds).forEach(b=>{if(b.status==='confirmed')hasConfirmed=true;else hasTentative=true;});});
+    }else{
+      const slot=recurringSlots[currentStudentId];
+      if(slot){const st=getMonthStatus(currentStudentId,monthStr(cellDate));if(st==='paid'||st==='due')hasConfirmed=true;else if(st==='tentative'||st==='skip_requested')hasTentative=true;}
+    }
+    const monthSt=!isAdmin?getMonthStatus(currentStudentId,monthStr(new Date(year,month,1))):null;
+    const isSkipped=!isAdmin&&monthSt==='skipped';
+    let dots='';
+    if(hasRecurring&&!isSkipped)dots+=`<div class="cal-dot dot-class"></div>`;
+    if(hasDropin)dots+=`<div class="cal-dot dot-dropin"></div>`;
+    if(hasConfirmed)dots+=`<div class="cal-dot dot-confirmed"></div>`;
+    if(hasTentative&&!hasConfirmed)dots+=`<div class="cal-dot dot-tentative"></div>`;
+    html+=`<div class="cal-cell ${!inMonth?'other-month':''} ${ds===today?'today':''} ${ds===selectedDate?'selected':''} ${isSkipped?'skipped-month':''}" onclick="${onCellClick}('${ds}')"><div class="cal-date">${cellDate.getDate()}</div><div class="cal-dots">${dots}</div></div>`;
+  }
+  grid.innerHTML=html;
+}
+
+function changeMonth(dir){viewMonth=new Date(viewMonth.getFullYear(),viewMonth.getMonth()+dir,1);selectedDate=null;isAdmin?renderACal():renderSCal();}
+
+function renderSCal(){
+  renderCal('s-cal-grid','s-cal-month','selectDayStudent');
+  const el=document.getElementById('s-day-classes');
+  if(!selectedDate){el.innerHTML=`<div style="font-size:12px;color:var(--text-muted);text-align:center;padding:16px 0">Tap a date to see classes</div>`;return;}
+  const ms=monthStr(new Date(selectedDate)),monthSt=getMonthStatus(currentStudentId,ms),s=curStudent();
+  const classes=classesOnDate(selectedDate);
+  if(!classes.length){el.innerHTML=`<div style="font-size:12px;color:var(--text-muted);text-align:center;padding:12px 0">No classes on this date</div>`;return;}
+  if(monthSt==='skipped'){el.innerHTML=`<div style="background:var(--surface-1);border-radius:10px;padding:14px;text-align:center"><div style="font-size:13px;font-weight:500;color:var(--text-primary);margin-bottom:4px"><i class="ti ti-moon"></i> Month off</div><div style="font-size:12px;color:var(--text-muted)">You have ${monthLabel(ms)} off. Your spot resumes next month.</div></div>`;return;}
+  el.innerHTML=classes.map(cls=>{
+    const allB=cls.type==='recurring'?getEffectiveBookings(cls.schedId,selectedDate):(bookings[cls.key]||[]);
+    const myB=allB.find(x=>x.studentId===s.id)||null,isMine=!!myB;
+    const confirmedCount=allB.filter(b=>b.status==='confirmed').length,isFull=confirmedCount>=cls.cap&&!isMine;
+    const past=selectedDate<todayStr(),pct=Math.round((allB.length/cls.cap)*100);
+    let btn='',note='';
+    if(past){btn=`<span style="font-size:11px;color:var(--text-muted)">Past</span>`;}
+    else if(isMine){
+      const st=myB.status,canCx=isCancellable(selectedDate);
+      if(st==='tentative'){note=`<div class="note amber"><i class="ti ti-clock" style="font-size:11px"></i>Spot held · confirmed once ${monthLabel(ms)} payment received</div>`;}
+      else{btn=`<button class="action-btn cancel" onclick="openCancel('${cls.key}','${selectedDate}')"${!canCx?' disabled style="opacity:0.4;cursor:default"':''}>Cancel</button>`;note=canCx?`<div class="note"><i class="ti ti-clock" style="font-size:11px"></i>Cancel before 12:00 for make-up</div>`:`<div class="note warn"><i class="ti ti-clock" style="font-size:11px"></i>Cancellation closed</div>`;}
+    }else if(cls.type==='dropin'){btn=`<button class="action-btn dropin-btn" onclick="openBook('${cls.key}','${selectedDate}','dropin')">Drop-in R160</button>`;}
+    else if(isFull){btn=`<span class="action-btn disabled">Full</span>`;}
+    else{btn=`<button class="action-btn" onclick="openBook('${cls.key}','${selectedDate}','membership')">Book</button>`;}
+    const cardClass=isMine?(myB.status==='tentative'?'my-tentative':myB.type==='dropin'?'my-dropin':'my-confirmed'):'';
+    const typeTag=isMine?(myB.status==='tentative'?`<span class="tag tag-tentative">Spot held</span>`:myB.type==='dropin'?`<span class="tag tag-drop">Drop-in · R160</span>`:`<span class="tag tag-confirmed"><i class="ti ti-check" style="font-size:9px"></i> Confirmed</span>`):(cls.type==='dropin'?`<span class="tag tag-drop">Drop-in only</span>`:'');
+    return`<div class="class-card ${cardClass}"><div class="class-row"><div><div class="class-day">${DAYS[new Date(selectedDate).getDay()]} · ${selectedDate}</div><div class="class-time">${cls.time}</div><div class="class-meta">${allB.length}/${cls.cap} spots</div>${typeTag}<div class="cap-bar"><div class="cap-fill" style="width:${pct}%;background:${capColor(allB.length,cls.cap)}"></div></div></div><div style="padding-top:4px">${btn}</div></div>${note}</div>`;
+  }).join('');
+}
+
+function selectDayStudent(ds){selectedDate=ds;renderSCal();}
+function selectDayAdmin(ds){selectedDate=ds;renderACal();}
+
+function renderACal(){
+  renderCal('a-cal-grid','a-cal-month','selectDayAdmin');
+  const el=document.getElementById('a-day-classes');
+  if(!selectedDate){el.innerHTML=`<div style="font-size:12px;color:var(--text-muted);text-align:center;padding:16px 0">Tap a date to manage</div>`;return;}
+  const classes=classesOnDate(selectedDate);
+  if(!classes.length){el.innerHTML=`<div style="font-size:12px;color:var(--text-muted);text-align:center;padding:12px 0">No classes · <button style="background:none;border:none;color:#9333ea;cursor:pointer;font-size:12px" onclick="openOv('ov-add-dropin-date')">Add drop-in</button></div>`;return;}
+  el.innerHTML=classes.map(cls=>{
+    const allB=cls.type==='recurring'?getEffectiveBookings(cls.schedId,selectedDate):(bookings[cls.key]||[]);
+    const confirmedC=allB.filter(b=>b.status==='confirmed').length,tentativeC=allB.filter(b=>b.status==='tentative').length;
+    const pct=Math.round((allB.length/cls.cap)*100),past=selectedDate<todayStr();
+    const roster=allB.map(x=>{
+      const s=getStudent(x.studentId);if(!s)return'';
+      const ms=monthStr(new Date(selectedDate)),mst=getMonthStatus(x.studentId,ms);
+      let chip='';
+      if(mst==='paid')chip=`<span class="status-pill sp-paid">Paid</span>`;
+      else if(mst==='due')chip=`<button class="action-sm a-green" onclick="markPaid(${s.id},'${ms}')">Mark paid</button>`;
+      else if(mst==='skipped')chip=`<span class="status-pill sp-skipped">Month off</span>`;
+      else if(mst==='skip_requested')chip=`<span style="display:flex;gap:3px"><button class="action-sm a-green" onclick="approveSkip(${s.id},'${ms}')">✓</button><button class="action-sm a-red" onclick="denySkip(${s.id},'${ms}')">✗</button></span>`;
+      else chip=`<span class="status-pill sp-tentative">Upcoming</span>`;
+      const avClass=mst==='paid'?'ra-confirmed':mst==='due'||mst==='skip_requested'?'ra-due':mst==='skipped'?'ra-skipped':'ra-tentative';
+      return`<div class="roster-row"><div class="roster-av ${avClass}">${s.initials}</div><span class="roster-name">${s.name}${x.status==='tentative'?' <span style="font-size:10px;color:var(--text-muted)">(tentative)</span>':''}</span><div style="flex-shrink:0">${chip}</div></div>`;
+    }).join('');
+    return`<div class="class-card" style="margin-bottom:10px"><div class="class-row"><div><div class="class-day">${cls.type==='dropin'?'Drop-in':'Recurring'} · ${selectedDate}</div><div class="class-time">${cls.time}</div><div class="class-meta">${allB.length}/${cls.cap} · ${confirmedC} confirmed · ${tentativeC} tentative</div><div class="cap-bar"><div class="cap-fill" style="width:${pct}%;background:${capColor(allB.length,cls.cap)}"></div></div></div><div style="display:flex;flex-direction:column;gap:4px;padding-top:2px">${!past&&allB.length<cls.cap?`<button class="action-btn" onclick="openAdminBook('${cls.key}','${selectedDate}',${cls.schedId||0})">+ Book</button>`:''}${past?`<span style="font-size:11px;color:var(--text-muted)">Done</span>`:''}</div></div>${allB.length>0?`<div class="roster">${roster}</div>`:''}</div>`;
+  }).join('');
+}
+
+function renderSPayments(){
+  const s=curStudent(),el=document.getElementById('s-payment-list');
+  if(s.plan==='trial'){el.innerHTML=`<div class="empty"><i class="ti ti-info-circle"></i>Trial student — no monthly payments. Ask your admin to upgrade your plan once you\'re ready to join.</div>`;return;}if(PLAN_ALLOWANCE[s.plan]===0){el.innerHTML=`<div class="empty"><i class="ti ti-info-circle"></i>Drop-in only plan — no monthly payments</div>`;return;}
+  const slot=recurringSlots[s.id],sc=slot?schedule.find(x=>x.id===slot.schedId):null;
+  const months=getTrackingMonths(),currentMs=monthStr(now());
+  const pendingChange=changeRequests.find(r=>r.studentId===s.id);
+  const pendingToSc=pendingChange?schedule.find(x=>x.id===pendingChange.toSchedId):null;
+  let html=`<div class="pay-summary"><div class="ps-title">Your weekly slot</div><div class="ps-slot">${sc?sc.day+' · '+sc.time:'No recurring slot booked'}</div><div class="ps-sub">${PLAN_LABEL[s.plan]} · Pay via EFT or cash</div>${sc?`<button onclick="openDayChangeRequest()" style="margin-top:8px;font-size:11px;padding:4px 10px;border-radius:20px;border:0.5px solid #a89bb5;background:none;color:#e8c5f5;cursor:pointer"><i class="ti ti-arrows-exchange" style="font-size:11px"></i> Change class day</button>`:''}</div>`;
+  if(pendingChange&&pendingToSc){
+    html+=`<div style="background:#EEEDFE;border:0.5px solid #AFA9EC;border-radius:8px;padding:10px 11px;font-size:12px;color:#534AB7;margin-bottom:10px;display:flex;gap:7px;align-items:center"><i class="ti ti-send" style="font-size:14px;flex-shrink:0"></i><div>Day change requested: <strong>${pendingToSc.day} ${pendingToSc.time}</strong> · waiting for approval</div></div>`;
+  }
+  months.forEach(ms=>{
+    const st=getMonthStatus(s.id,ms),fee=PLAN_FEE[s.plan],isCurrent=ms===currentMs;
+    let iconClass='',icon='',pill='',sub='',actions='';
+    if(st==='paid'){iconClass='mi-paid';icon='ti-check';pill=`<span class="status-pill sp-paid">Paid</span>`;sub=`R${fee} received`;}
+    else if(st==='due'){iconClass='mi-due';icon='ti-clock';pill=`<span class="status-pill sp-due">Payment due</span>`;sub=`R${fee} outstanding — pay via EFT or cash`;}
+    else if(st==='skipped'){iconClass='mi-skipped';icon='ti-moon';pill=`<span class="status-pill sp-skipped">Month off</span>`;sub='No payment due · spot held tentatively';}
+    else if(st==='skip_requested'){iconClass='mi-requested';icon='ti-send';pill=`<span class="status-pill sp-requested">Requested off</span>`;sub='Waiting for instructor to confirm';}
+    else{iconClass='mi-tentative';icon='ti-calendar';pill=`<span class="status-pill sp-tentative">Upcoming</span>`;sub=`R${fee} will be due · spot held`;actions=`<button class="action-sm a-gray" onclick="openSkipRequest('${ms}')">Request off</button>`;}
+    html+=`<div class="month-card ${st==='paid'?'paid':st==='due'?'due':st==='skipped'?'skipped':st==='skip_requested'?'requested':'tentative'}"><div class="month-icon ${iconClass}"><i class="ti ${icon}"></i></div><div style="flex:1;min-width:0"><div class="month-label">${monthLabel(ms)}${isCurrent?' <span style="font-size:10px;color:#9333ea">· current</span>':''}</div><div class="month-sub">${sub}</div></div><div class="month-action">${pill}${actions?`<div style="margin-top:4px">${actions}</div>`:''}</div></div>`;
+  });
+  el.innerHTML=html;
+}
+
+function openSkipRequest(ms){skipRequestTarget={studentId:currentStudentId,ms};document.getElementById('sr-ci').innerHTML=`<strong>${monthLabel(ms)}</strong><span>Request this month off — no payment due if approved</span>`;openOv('ov-skip-request');}
+function confirmSkipRequest(){if(!skipRequestTarget)return;setMonthStatus(skipRequestTarget.studentId,skipRequestTarget.ms,'skip_requested');closeOv('ov-skip-request');renderSPayments();}
+
+function renderAPayments(){
+  const reqBanner=document.getElementById('skip-requests-banner');
+  const reqs=[];
+  students.forEach(s=>{Object.entries(monthStatus[s.id]||{}).forEach(([ms,st])=>{if(st==='skip_requested')reqs.push({student:s,ms});});});
+  // also show day change requests
+  const changeReqHtml=changeRequests.map(r=>{
+    const fromSc=schedule.find(x=>x.id===r.fromSchedId),toSc=schedule.find(x=>x.id===r.toSchedId);
+    return`<div class="skip-req-banner"><i class="ti ti-arrows-exchange" style="font-size:16px;flex-shrink:0"></i><div style="flex:1"><strong>${r.studentName}</strong> wants to move from <strong>${fromSc?fromSc.day+' '+fromSc.time:'?'}</strong> to <strong>${toSc?toSc.day+' '+toSc.time:'?'}</strong></div><div style="display:flex;gap:5px"><button class="action-sm a-green" onclick="approveChangeRequest(${r.id})">Approve</button><button class="action-sm a-red" onclick="denyChangeRequest(${r.id})">Deny</button></div></div>`;
+  }).join('');
+  reqBanner.innerHTML=changeReqHtml+reqs.map(r=>`<div class="skip-req-banner"><i class="ti ti-send" style="font-size:16px;flex-shrink:0"></i><div style="flex:1"><strong>${r.student.name}</strong> requested ${monthLabel(r.ms)} off</div><div style="display:flex;gap:5px"><button class="action-sm a-green" onclick="approveSkip(${r.student.id},'${r.ms}')">Approve</button><button class="action-sm a-red" onclick="denySkip(${r.student.id},'${r.ms}')">Deny</button></div></div>`).join('');
+  const months=getTrackingMonths(),currentMs=monthStr(now()),el=document.getElementById('a-payment-list');
+  let html='';
+  months.forEach(ms=>{
+    const memberStudents=students.filter(s=>PLAN_ALLOWANCE[s.plan]>0&&recurringSlots[s.id]);
+    if(!memberStudents.length)return;
+    const paid=memberStudents.filter(s=>getMonthStatus(s.id,ms)==='paid').length;
+    const due=memberStudents.filter(s=>getMonthStatus(s.id,ms)==='due').length;
+    const skipped=memberStudents.filter(s=>['skipped','skip_requested'].includes(getMonthStatus(s.id,ms))).length;
+    const tentative=memberStudents.filter(s=>getMonthStatus(s.id,ms)==='tentative').length;
+    html+=`<div style="margin-bottom:14px"><div style="font-size:13px;font-weight:500;color:var(--text-primary);margin-bottom:6px;display:flex;align-items:center;gap:8px">${monthLabel(ms)}${ms===currentMs?` <span style="font-size:10px;background:#EEEDFE;color:#534AB7;padding:2px 7px;border-radius:20px">current</span>`:''}<span style="margin-left:auto;font-size:11px;color:var(--text-muted)">${paid} paid · ${due} due · ${skipped} off · ${tentative} upcoming</span></div>${memberStudents.map(s=>{
+      const st=getMonthStatus(s.id,ms),fee=PLAN_FEE[s.plan];
+      let pill='',actionHtml='';
+      if(st==='paid'){pill=`<span class="status-pill sp-paid">Paid</span>`;actionHtml=`<button class="action-sm a-gray" style="margin-top:4px" onclick="markDue(${s.id},'${ms}')">Undo paid</button>`;}
+      else if(st==='due'){pill=`<span class="status-pill sp-due">Due R${fee}</span>`;actionHtml=`<button class="action-sm a-green" style="margin-top:4px" onclick="markPaid(${s.id},'${ms}')">Mark paid</button>`;}
+      else if(st==='skipped'){pill=`<span class="status-pill sp-skipped">Month off</span>`;}
+      else if(st==='skip_requested'){pill=`<span class="status-pill sp-requested">Requested off</span>`;actionHtml=`<div style="display:flex;gap:4px;margin-top:4px"><button class="action-sm a-green" onclick="approveSkip(${s.id},'${ms}')">Approve</button><button class="action-sm a-red" onclick="denySkip(${s.id},'${ms}')">Deny</button></div>`;}
+      else{
+        pill=`<span class="status-pill sp-tentative">Upcoming</span>`;
+        actionHtml=`<div style="display:flex;flex-direction:column;gap:4px;margin-top:4px">
+          <button class="action-sm a-green" onclick="markPaid(${s.id},'${ms}')">Mark paid</button>
+          <button class="action-sm a-amber" onclick="markDue(${s.id},'${ms}')">Mark due</button>
+          <button class="action-sm a-gray" onclick="adminMarkSkip(${s.id},'${ms}')">Mark skip</button>
+        </div>`;
+      }
+      const slot=recurringSlots[s.id],sc=slot?schedule.find(x=>x.id===slot.schedId):null;
+      return`<div class="month-card ${st==='paid'?'paid':st==='due'?'due':st==='skipped'?'skipped':st==='skip_requested'?'requested':'tentative'}" style="margin-bottom:6px"><div class="av" style="flex-shrink:0">${s.initials}</div><div style="flex:1;min-width:0"><div class="month-label" style="font-size:13px">${s.name}</div><div class="month-sub">${sc?sc.day+' '+sc.time:''} · ${PLAN_LABEL[s.plan].split('·')[0].trim()}</div></div><div class="month-action" style="text-align:right">${pill}${actionHtml}</div></div>`;
+    }).join('')}</div>`;
+  });
+  el.innerHTML=html||`<div class="empty"><i class="ti ti-users"></i>No membership students yet</div>`;
+}
+
+function markPaid(sid,ms){setMonthStatus(sid,ms,'paid');renderAPayments();renderAFinance();}
+function markDue(sid,ms){setMonthStatus(sid,ms,'due');renderAPayments();renderAFinance();}
+function approveSkip(sid,ms){setMonthStatus(sid,ms,'skipped');renderAPayments();if(!isAdmin)renderSPayments();}
+function denySkip(sid,ms){setMonthStatus(sid,ms,'due');renderAPayments();if(!isAdmin)renderSPayments();}
+function adminMarkSkip(sid,ms){setMonthStatus(sid,ms,'skipped');renderAPayments();}
+
+let deleteTargetId=null;
+function renderAStudents(){
+  const el=document.getElementById('a-student-list'),currentMs=monthStr(now());
+  if(!students.length){el.innerHTML=`<div class="empty"><i class="ti ti-users"></i>No students yet</div>`;return;}
+  el.innerHTML=students.map(s=>{
+    const slot=recurringSlots[s.id],sc=slot?schedule.find(x=>x.id===slot.schedId):null;
+    const mu=makeups.filter(m=>m.studentId===s.id).length,mst=getMonthStatus(s.id,currentMs);
+    const isTrial=s.plan==='trial';return`<div class="student-row"><div class="av" style="${isTrial?'background:#FAEEDA;color:#854F0B':''}}">${s.initials}</div><div style="flex:1;min-width:0"><div class="sname">${s.name}</div><div class="splan">${PLAN_LABEL[s.plan]}</div>${sc?`<div style="font-size:11px;color:#9333ea;margin-top:1px"><i class="ti ti-repeat" style="font-size:10px"></i> ${sc.day} ${sc.time}</div>`:''} ${mu>0?`<span style="font-size:10px;padding:2px 7px;border-radius:20px;font-weight:500;background:#EEEDFE;color:#534AB7;margin-top:2px;display:inline-block"><i class="ti ti-refresh" style="font-size:10px"></i> ${mu} make-up</span>`:''}</div><div style="display:flex;align-items:center;gap:6px;flex-shrink:0">${isTrial?`<button onclick="openUpgradeStudent(${s.id})" style="font-size:10px;padding:3px 8px;border-radius:20px;background:#9333ea;color:white;border:none;cursor:pointer;font-weight:500">Upgrade</button>`:`<span class="status-pill ${mst==='paid'?'sp-paid':mst==='due'?'sp-due':mst==='skipped'||mst==='skip_requested'?'sp-requested':'sp-tentative'}">${mst==='paid'?'Paid':mst==='due'?'Due':mst==='skipped'?'Month off':mst==='skip_requested'?'Skip req.':'Upcoming'}</span>`}<button onclick="openDeleteConfirm(${s.id})" title="Remove student" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:15px;padding:4px;border-radius:6px;line-height:1"><i class="ti ti-user-minus"></i></button></div></div>`;
+  }).join('');
+}
+function openDeleteConfirm(id){
+  const s=students.find(x=>x.id===id);if(!s)return;
+  deleteTargetId=id;
+  document.getElementById('del-av').textContent=s.initials;
+  document.getElementById('del-name').textContent=s.name;
+  const slot=recurringSlots[s.id],sc=slot?schedule.find(x=>x.id===slot.schedId):null;
+  document.getElementById('del-detail').textContent=PLAN_LABEL[s.plan]+(sc?' · '+sc.day+' '+sc.time:'');
+  openOv('ov-confirm-delete');
+}
+function confirmDeleteStudent(){
+  if(!deleteTargetId)return;
+  students=students.filter(s=>s.id!==deleteTargetId);
+  delete recurringSlots[deleteTargetId];
+  delete monthStatus[deleteTargetId];
+  makeups=makeups.filter(m=>m.studentId!==deleteTargetId);
+  Object.keys(bookings).forEach(key=>{bookings[key]=(bookings[key]||[]).filter(b=>b.studentId!==deleteTargetId);});
+  if(currentStudentId===deleteTargetId&&students.length>0){currentStudentId=students[0].id;updateWhoBar();}
+  deleteTargetId=null;
+  closeOv('ov-confirm-delete');
+  renderAStudents();renderAFinance();
+}
+
+function renderASchedule(){
+  const sl=document.getElementById('a-sched-list'),grouped={};
+  schedule.forEach(sc=>{if(!grouped[sc.day])grouped[sc.day]=[];grouped[sc.day].push(sc);});
+  const order=['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+  sl.innerHTML=order.filter(d=>grouped[d]).map(d=>`<div class="day-section"><div class="day-section-title">${d}</div>${grouped[d].map(sc=>`<div class="sched-row"><span style="font-size:13px;color:var(--text-secondary);flex:1">${sc.time}</span><span style="font-size:11px;color:var(--text-muted)">Cap: ${sc.cap}</span><button class="edit-btn" onclick="openEditClass(${sc.id})"><i class="ti ti-edit"></i></button><button class="del-btn" onclick="deleteClass(${sc.id})"><i class="ti ti-trash"></i></button></div>`).join('')}</div>`).join('');
+  if(!schedule.length)sl.innerHTML=`<div class="empty"><i class="ti ti-calendar"></i>No recurring classes</div>`;
+  const dl=document.getElementById('a-dropin-list');
+  dl.innerHTML=[...dropinDates].sort((a,b)=>a.date.localeCompare(b.date)).map(di=>`<div class="sched-row"><span style="font-size:12px;color:var(--text-secondary);flex:1">${di.date} · ${di.time}</span><span style="font-size:11px;color:var(--text-muted)">Cap: ${di.cap}</span><button class="del-btn" onclick="deleteDropin(${di.id})"><i class="ti ti-trash"></i></button></div>`).join('');
+  if(!dropinDates.length)dl.innerHTML=`<div class="empty"><i class="ti ti-calendar"></i>No drop-in dates</div>`;
+}
+
+function renderExpenses(){
+  const el=document.getElementById('a-expense-list');
+  if(!expenses.length){el.innerHTML=`<div class="empty"><i class="ti ti-receipt"></i>No expenses</div>`;return;}
+  el.innerHTML=expenses.map(e=>`<div class="exp-row"><div style="flex:1"><div style="font-size:13px;color:var(--text-primary)">${e.name}</div><span class="exp-type ${e.type==='recurring'?'exp-recurring':'exp-oneoff'}">${e.type==='recurring'?'Monthly':'One-off'}</span></div><span style="font-size:13px;font-weight:500;color:var(--text-primary)">R${e.amount.toLocaleString()}</span><button style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:13px;margin-left:6px" onclick="deleteExpense(${e.id})"><i class="ti ti-trash"></i></button></div>`).join('');
+}
+function deleteExpense(id){expenses=expenses.filter(e=>e.id!==id);renderExpenses();renderAFinance();}
+function confirmAddExpense(){
+  const name=document.getElementById('exp-name').value.trim(),amt=parseFloat(document.getElementById('exp-amt').value),type=document.getElementById('exp-type').value;
+  if(!name||!amt)return;expenses.push({id:nextExpId++,name,amount:amt,type});closeOv('ov-add-expense');renderExpenses();renderAFinance();
+}
+function renderAFinance(){
+  const currentMs=monthStr(now()),paidStudents=students.filter(s=>PLAN_ALLOWANCE[s.plan]>0&&recurringSlots[s.id]&&getMonthStatus(s.id,currentMs)==='paid');
+  const income=paidStudents.reduce((a,s)=>a+PLAN_FEE[s.plan],0);
+  const recurringCosts=expenses.filter(e=>e.type==='recurring').reduce((a,e)=>a+e.amount,0);
+  const oneoffCosts=expenses.filter(e=>e.type==='oneoff').reduce((a,e)=>a+e.amount,0);
+  const net=income-recurringCosts-oneoffCosts,dueCount=students.filter(s=>PLAN_ALLOWANCE[s.plan]>0&&recurringSlots[s.id]&&getMonthStatus(s.id,currentMs)==='due').length;
+  document.getElementById('a-finance-content').innerHTML=`<div class="fin-summary"><div class="fin-title">This month's income (confirmed)</div><div class="fin-val">R${income.toLocaleString()}</div><div class="fin-sub">${paidStudents.length} paid · ${dueCount} still due this month</div><div class="fin-row"><div class="fin-item"><strong>R${recurringCosts.toLocaleString()}</strong>Recurring costs</div><div class="fin-item"><strong>R${oneoffCosts.toLocaleString()}</strong>One-off costs</div><div class="fin-item"><strong style="color:${net>=0?'#9FE1CB':'#f09595'}">R${net.toLocaleString()}</strong>Net</div></div></div>`;
+  renderExpenses();
+}
+function renderSMu(){
+  const mine=makeups.filter(m=>m.studentId===currentStudentId),el=document.getElementById('s-mu-list');
+  if(!mine.length){el.innerHTML=`<div class="empty"><i class="ti ti-refresh"></i>No make-up credits</div>`;return;}
+  // show active first, then used
+  const active=mine.filter(m=>!m.used),used=mine.filter(m=>m.used);
+  let html='';
+  if(active.length){
+    html+=`<div style="font-size:11px;font-weight:500;color:var(--text-muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.5px">Active</div>`;
+    html+=active.map(m=>{
+      const dl=Math.ceil((new Date(m.expiry)-now())/86400000),urgent=dl<30;
+      return`<div style="background:var(--surface-2);border:0.5px solid #AFA9EC;border-radius:10px;padding:11px;margin-bottom:8px">
+        <div style="display:flex;align-items:center;justify-content:space-between">
+          <div style="font-size:13px;font-weight:500;color:var(--text-primary)">Make-up credit</div>
+          <span style="font-size:10px;padding:2px 8px;border-radius:20px;background:#EEEDFE;color:#534AB7;font-weight:500">Active</span>
+        </div>
+        <div style="font-size:11px;color:var(--text-muted);margin-top:3px">Missed: ${m.classDay}${m.classTime?' · '+m.classTime:''}</div>
+        <div style="font-size:11px;margin-top:5px;color:${urgent?'#e24b4a':'#9333ea'};display:flex;align-items:center;gap:3px">
+          <i class="ti ti-clock" style="font-size:11px"></i>Expires ${m.expiry} · ${dl} days left
+        </div>
+      </div>`;
+    }).join('');
+  }
+  if(used.length){
+    html+=`<div style="font-size:11px;font-weight:500;color:var(--text-muted);margin-bottom:6px;margin-top:${active.length?'10px':'0'};text-transform:uppercase;letter-spacing:0.5px">Used</div>`;
+    html+=used.map(m=>`<div style="background:var(--surface-1);border:0.5px solid var(--border);border-radius:10px;padding:11px;margin-bottom:8px;opacity:0.75">
+      <div style="display:flex;align-items:center;justify-content:space-between">
+        <div style="font-size:13px;font-weight:500;color:var(--text-secondary)">Make-up credit</div>
+        <span style="font-size:10px;padding:2px 8px;border-radius:20px;background:#EAF3DE;color:#3B6D11;font-weight:500"><i class="ti ti-check" style="font-size:10px"></i> Used</span>
+      </div>
+      <div style="font-size:11px;color:var(--text-muted);margin-top:3px">Missed: ${m.classDay}${m.classTime?' · '+m.classTime:''}</div>
+      <div style="font-size:11px;color:var(--text-muted);margin-top:5px;display:flex;align-items:center;gap:3px">
+        <i class="ti ti-calendar-check" style="font-size:11px"></i>Used on ${m.usedDate}
+      </div>
+    </div>`).join('');
+  }
+  if(!active.length&&!used.length)html=`<div class="empty"><i class="ti ti-refresh"></i>No make-up credits</div>`;
+  el.innerHTML=html;
+}
+function updateWhoBar(){
+  const s=curStudent(),slot=recurringSlots[s.id],sc=slot?schedule.find(x=>x.id===slot.schedId):null;
+  document.getElementById('s-avatar').textContent=s.initials;
+  document.getElementById('s-name').textContent=s.name;
+  document.getElementById('s-plan').textContent=PLAN_LABEL[s.plan]+(sc?' · '+sc.day+' '+sc.time:'');
+}
+function openBook(key,dateS,forceType){
+  bookTarget={key,dateS};pendingBookType=forceType||'membership';
+  const isDropin=pendingBookType==='dropin'||key.startsWith('dropin-');
+  document.getElementById('bk-title').textContent=`Book — ${dateS}`;
+  document.getElementById('bk-sub').textContent='';
+  document.getElementById('bk-ci').innerHTML=`<strong>${dateS}</strong><span>${isDropin?'Drop-in booking':'Weekly membership slot'}</span>`;
+  const box=document.getElementById('bk-info-box');
+  const btn=document.getElementById('bk-confirm-btn');
+  if(isDropin){
+    const mu=getOldestMakeup(currentStudentId);
+    if(mu){
+      const dl=Math.ceil((new Date(mu.expiry)-now())/86400000);
+      box.className='info-box green';
+      document.getElementById('bk-info-text').textContent=`You have a make-up credit expiring in ${dl} days — it will be used automatically for this booking at no charge.`;
+      btn.className='btn-p';btn.textContent='Book using make-up credit';
+      pendingBookType='makeup';
+    }else{
+      box.className='info-box amber';
+      document.getElementById('bk-info-text').textContent='No make-up credits available. This will be charged as a drop-in (R160) — pay via EFT or cash.';
+      btn.className='btn-amber';btn.textContent='Book drop-in (R160)';
+    }
+  }else{
+    box.className='info-box purple';
+    document.getElementById('bk-info-text').textContent="You'll be tentatively held every week in this slot. Confirmed once monthly payment is received.";
+    btn.className='btn-p';btn.textContent='Book weekly slot';
+  }
+  openOv('ov-book');
+}
+function confirmBook(){
+  if(!bookTarget)return;const{key,dateS}=bookTarget,s=curStudent();
+  if(pendingBookType==='membership'&&!key.startsWith('dropin-')){
+    const schedId=parseInt(key.split('-')[0]);recurringSlots[s.id]={schedId};
+    const months=getTrackingMonths();months.forEach(ms=>{if(!monthStatus[s.id])monthStatus[s.id]={};if(!monthStatus[s.id][ms])monthStatus[s.id][ms]='tentative';});
+  }else{
+    if(!bookings[key])bookings[key]=[];
+    if(!bookings[key].find(x=>x.studentId===s.id)){
+      bookings[key].push({studentId:s.id,type:pendingBookType==='makeup'?'makeup':'dropin',status:'confirmed'});
+      // mark oldest makeup credit as used (keep for record)
+      if(pendingBookType==='makeup'){
+        const mu=getOldestMakeup(s.id);
+        if(mu){mu.usedDate=dateS;mu.used=true;}
+      }
+    }
+  }
+  closeOv('ov-book');renderSCal();updateWhoBar();
+}
+function openCancel(key,dateS){
+  cancelTarget={key,dateS};const canCx=isCancellable(dateS);
+  document.getElementById('cx-ci').innerHTML=`<strong>${dateS}</strong><span>Your booking</span>`;
+  document.getElementById('cx-msg').innerHTML=canCx?`<div class="info-box purple"><i class="ti ti-info-circle" style="font-size:13px;flex-shrink:0"></i>You'll receive a make-up credit valid for 3 months.</div>`:`<div class="info-box amber"><i class="ti ti-alert-triangle" style="font-size:13px;flex-shrink:0"></i>Cancellation window closed. No make-up credit.</div>`;
+  openOv('ov-cancel');
+}
+function confirmCancel(){
+  if(!cancelTarget)return;const{key,dateS}=cancelTarget,canCx=isCancellable(dateS);
+  if(bookings[key])bookings[key]=(bookings[key]||[]).filter(x=>x.studentId!==currentStudentId);
+  if(canCx){const s=curStudent(),exp=new Date(now());exp.setMonth(exp.getMonth()+3);makeups.push({id:nextMid++,studentId:currentStudentId,studentName:s.name,classDay:dateS,classTime:'',expiry:exp.toISOString().slice(0,10)});}
+  closeOv('ov-cancel');renderSCal();
+}
+function openAdminBook(key,dateS,schedId){
+  adminBookTarget={key,dateS,schedId};
+  const allB=schedId?getEffectiveBookings(schedId,dateS):(bookings[key]||[]),booked=allB.map(x=>x.studentId);
+  document.getElementById('abk-student').innerHTML=students.filter(s=>!booked.includes(s.id)).map(s=>`<option value="${s.id}">${s.name}</option>`).join('');
+  document.getElementById('abk-title').textContent=`Book — ${dateS}`;document.getElementById('abk-sub').textContent=`${allB.length} booked`;
+  document.getElementById('abk-ci').innerHTML=`<strong>${dateS}</strong><span>Add a student</span>`;openOv('ov-admin-book');
+}
+function confirmAdminBook(){
+  const sid=parseInt(document.getElementById('abk-student').value),type=document.getElementById('abk-type').value;
+  if(!sid||!adminBookTarget)return;const{key}=adminBookTarget;
+  if(!bookings[key])bookings[key]=[];bookings[key].push({studentId:sid,type,status:'confirmed'});closeOv('ov-admin-book');renderACal();
+}
+function openAddClass(){editSchedId=null;document.getElementById('ac-title').textContent='Add recurring class';document.getElementById('ac-day').value='Monday';document.getElementById('ac-time').value='18:00';document.getElementById('ac-cap').value='5';openOv('ov-add-class');}
+function openEditClass(id){const sc=schedule.find(x=>x.id===id);if(!sc)return;editSchedId=id;document.getElementById('ac-title').textContent='Edit class';document.getElementById('ac-day').value=sc.day;document.getElementById('ac-time').value=sc.time;document.getElementById('ac-cap').value=sc.cap;openOv('ov-add-class');}
+function confirmAddClass(){
+  const day=document.getElementById('ac-day').value,time=document.getElementById('ac-time').value,cap=parseInt(document.getElementById('ac-cap').value)||5;
+  if(editSchedId){const sc=schedule.find(x=>x.id===editSchedId);if(sc){sc.day=day;sc.time=time;sc.cap=cap;}}
+  else schedule.push({id:nextSchedId++,day,time,cap});closeOv('ov-add-class');renderASchedule();
+}
+function deleteClass(id){schedule=schedule.filter(x=>x.id!==id);renderASchedule();}
+function confirmAddDropin(){
+  const date=document.getElementById('di-date').value,time=document.getElementById('di-time').value,cap=parseInt(document.getElementById('di-cap').value)||5;
+  if(!date)return;dropinDates.push({id:nextDropinId++,date,time,cap});closeOv('ov-add-dropin-date');renderASchedule();
+}
+function deleteDropin(id){dropinDates=dropinDates.filter(x=>x.id!==id);renderASchedule();}
+function confirmAddStudent(){
+  const name=document.getElementById('ns-name').value.trim();if(!name)return;
+  const initials=name.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
+  students.push({id:nextSid++,name,initials,plan:document.getElementById('ns-plan').value});closeOv('ov-add-student');renderAStudents();
+}
+function sshow(id){
+  document.querySelectorAll('#student-app .screen').forEach(s=>s.classList.remove('active'));
+  document.querySelectorAll('#snav .nav-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('screen-'+id).classList.add('active');document.getElementById('snav-'+id).classList.add('active');
+  if(id==='s-cal')renderSCal();if(id==='s-myclasses')renderSMyClasses();if(id==='s-payments')renderSPayments();if(id==='s-makeups')renderSMu();
+}
+function ashow(id){
+  document.querySelectorAll('#admin-app .screen').forEach(s=>s.classList.remove('active'));
+  document.querySelectorAll('#anav .nav-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('screen-'+id).classList.add('active');document.getElementById('anav-'+id).classList.add('active');
+  if(id==='a-cal')renderACal();if(id==='a-students')renderAStudents();if(id==='a-payments')renderAPayments();if(id==='a-schedule')renderASchedule();if(id==='a-finance')renderAFinance();
+}
+function setMode(m){
+  isAdmin=m==='admin';
+  document.getElementById('student-app').style.display=isAdmin?'none':'block';
+  document.getElementById('admin-app').style.display=isAdmin?'block':'none';
+  document.getElementById('mbtn-student').classList.toggle('active',!isAdmin);
+  document.getElementById('mbtn-admin').classList.toggle('active',isAdmin);
+  document.getElementById('header-sub').textContent=isAdmin?'Admin view':'Student view';
+  selectedDate=null;isAdmin?renderACal():renderSCal();
+}
+function openOv(id){
+  if(id==='ov-add-dropin-date')document.getElementById('di-date').value=todayStr();
+  if(id==='ov-switch'){document.getElementById('switch-list').innerHTML=students.map(s=>`<div class="student-row" style="cursor:pointer" onclick="switchStudent(${s.id})"><div class="av">${s.initials}</div><div><div class="sname">${s.name}</div><div class="splan">${PLAN_LABEL[s.plan]}</div></div>${s.id===currentStudentId?`<i class="ti ti-check" style="margin-left:auto;color:#9333ea;font-size:16px"></i>`:''}</div>`).join('');}
+  document.getElementById(id).classList.add('open');
+}
+function closeOv(id){document.getElementById(id).classList.remove('open');cancelTarget=null;bookTarget=null;adminBookTarget=null;pendingBookType=null;editSchedId=null;skipRequestTarget=null;}
+function switchStudent(id){currentStudentId=id;updateWhoBar();closeOv('ov-switch');renderSCal();}
+
+
+
+function openDayChangeRequest(){
+  const s=curStudent(),slot=recurringSlots[s.id],sc=slot?schedule.find(x=>x.id===slot.schedId):null;
+  if(!sc)return;
+  // check if already has a pending request
+  const pending=changeRequests.find(r=>r.studentId===s.id);
+  if(pending){
+    const newSc=schedule.find(x=>x.id===pending.toSchedId);
+    alert('You already have a pending request to move to '+( newSc?newSc.day+' '+newSc.time:'another slot')+'. Please wait for your instructor to respond.');
+    return;
+  }
+  document.getElementById('dc-current').innerHTML=`<strong>Current slot</strong><span>${sc.day} · ${sc.time}</span>`;
+  // populate other slots (exclude current)
+  const sel=document.getElementById('dc-new-slot');
+  sel.innerHTML=schedule.filter(x=>x.id!==sc.id).map(x=>`<option value="${x.id}">${x.day} · ${x.time}</option>`).join('');
+  if(!sel.innerHTML){sel.innerHTML='<option disabled>No other slots available</option>';}
+  openOv('ov-day-change');
+}
+function confirmDayChangeRequest(){
+  const s=curStudent(),toSchedId=parseInt(document.getElementById('dc-new-slot').value);
+  const slot=recurringSlots[s.id];if(!slot||!toSchedId)return;
+  changeRequests.push({id:nextChangeReqId++,studentId:s.id,studentName:s.name,fromSchedId:slot.schedId,toSchedId});
+  closeOv('ov-day-change');
+  renderSPayments();
+}
+function approveChangeRequest(reqId){
+  const req=changeRequests.find(r=>r.id===reqId);if(!req)return;
+  if(recurringSlots[req.studentId])recurringSlots[req.studentId].schedId=req.toSchedId;
+  changeRequests=changeRequests.filter(r=>r.id!==reqId);
+  renderAPayments();renderAStudents();
+}
+function denyChangeRequest(reqId){
+  changeRequests=changeRequests.filter(r=>r.id!==reqId);
+  renderAPayments();
+}
+
+function openAddMakeup(){
+  // populate student dropdown
+  const sel=document.getElementById('mu-student');
+  sel.innerHTML=students.map(s=>`<option value="${s.id}">${s.name}</option>`).join('');
+  // default expiry = 3 months from today
+  const exp=new Date(now());exp.setMonth(exp.getMonth()+3);
+  document.getElementById('mu-expiry').value=exp.toISOString().slice(0,10);
+  document.getElementById('mu-reason').value='';
+  openOv('ov-add-makeup');
+}
+function confirmAddMakeup(){
+  const sid=parseInt(document.getElementById('mu-student').value);
+  const reason=document.getElementById('mu-reason').value.trim()||'Admin added';
+  const expiry=document.getElementById('mu-expiry').value;
+  const s=getStudent(sid);
+  if(!sid||!expiry||!s)return;
+  makeups.push({
+    id:nextMid++,
+    studentId:sid,
+    studentName:s.name,
+    classDay:reason,
+    classTime:'',
+    expiry,
+    used:false
+  });
+  closeOv('ov-add-makeup');
+  // refresh whichever screen is active
+  renderSMu();
+}
+
+function renderSMyClasses(){
+  const s=curStudent(),el=document.getElementById('s-myclasses-list');
+  const today=todayStr();
+  const upcoming=[],past=[];
+
+  // collect recurring slot bookings for next 3 months
+  const slot=recurringSlots[s.id];
+  if(slot){
+    const sc=schedule.find(x=>x.id===slot.schedId);
+    if(sc){
+      const end=new Date(now().getFullYear(),now().getMonth()+3,0);
+      for(let d=new Date(now());d<=end;d.setDate(d.getDate()+1)){
+        if(DAYS[d.getDay()]===sc.day){
+          const ds=dateStr(new Date(d));
+          const ms=monthStr(new Date(ds));
+          const st=getMonthStatus(s.id,ms);
+          if(st==='skipped')continue;
+          const bookSt=(st==='paid'||st==='due')?'confirmed':'tentative';
+          const arr=ds>=today?upcoming:past;
+          arr.push({key:`${sc.id}-${ds}`,date:ds,time:sc.time,type:'membership',status:bookSt,day:sc.day});
+        }
+      }
+    }
+  }
+
+  // collect past recurring
+  if(slot){
+    const sc=schedule.find(x=>x.id===slot.schedId);
+    if(sc){
+      const start=new Date(now().getFullYear(),now().getMonth()-2,1);
+      for(let d=new Date(start);d<now();d.setDate(d.getDate()+1)){
+        if(DAYS[d.getDay()]===sc.day){
+          const ds=dateStr(new Date(d));
+          const ms=monthStr(new Date(ds));
+          const st=getMonthStatus(s.id,ms);
+          if(st==='skipped')continue;
+          past.unshift({key:`${sc.id}-${ds}`,date:ds,time:sc.time,type:'membership',status:'completed',day:sc.day});
+        }
+      }
+    }
+  }
+
+  // one-off bookings (drop-ins, makeup)
+  Object.keys(bookings).forEach(key=>{
+    const b=(bookings[key]||[]).find(x=>x.studentId===s.id);
+    if(!b)return;
+    let date,time,type;
+    if(key.startsWith('dropin-')){
+      const id=parseInt(key.split('-')[1]);
+      const di=dropinDates.find(x=>x.id===id);
+      if(!di)return;
+      date=di.date;time=di.time;type=b.type;
+    }else{
+      date=key.split('-').slice(1).join('-');
+      const scId=parseInt(key.split('-')[0]);
+      const sc=schedule.find(x=>x.id===scId);
+      time=sc?sc.time:'';type=b.type;
+    }
+    // avoid duplicates with recurring
+    const alreadyIn=[...upcoming,...past].find(x=>x.key===key);
+    if(alreadyIn)return;
+    const entry={key,date,time,type,status:date>=today?'confirmed':'completed',bookingType:b.type};
+    date>=today?upcoming.push(entry):past.unshift(entry);
+  });
+
+  upcoming.sort((a,b)=>a.date.localeCompare(b.date)||a.time.localeCompare(b.time));
+  past.sort((a,b)=>b.date.localeCompare(a.date)||b.time.localeCompare(a.time));
+
+  if(!upcoming.length&&!past.length){
+    el.innerHTML=`<div class="empty"><i class="ti ti-bookmark"></i>No classes booked yet.<br>Tap Calendar to book your slot.</div>`;return;
+  }
+
+  function classCard(c){
+    const isTent=c.status==='tentative',isCompleted=c.status==='completed';
+    const isDropin=c.type==='dropin'||c.bookingType==='dropin',isMakeup=c.type==='makeup'||c.bookingType==='makeup';
+    const canCx=!isCompleted&&isCancellable(c.date)&&!isTent;
+    let tag='',cardClass='';
+    if(isCompleted){tag=`<span class="tag" style="background:var(--surface-1);color:var(--text-muted);border:0.5px solid var(--border)">Completed</span>`;cardClass='';}
+    else if(isTent){tag=`<span class="tag tag-tentative">Spot held</span>`;cardClass='my-tentative';}
+    else if(isMakeup){tag=`<span class="tag tag-confirmed"><i class="ti ti-check" style="font-size:9px"></i> Make-up used</span>`;cardClass='my-confirmed';}
+    else if(isDropin){tag=`<span class="tag tag-drop">Drop-in · R160</span>`;cardClass='my-dropin';}
+    else{tag=`<span class="tag tag-confirmed"><i class="ti ti-check" style="font-size:9px"></i> Confirmed</span>`;cardClass='my-confirmed';}
+    const cancelBtn=canCx?`<button class="action-btn cancel" onclick="openCancel('${c.key}','${c.date}')">Cancel</button>`:'';
+    const tentNote=isTent?`<div class="note amber"><i class="ti ti-clock" style="font-size:10px"></i>Spot held · confirmed once payment received</div>`:'';
+    const cxNote=!isTent&&!isCompleted?(canCx?`<div class="note"><i class="ti ti-clock" style="font-size:10px"></i>Cancel before 12:00 for make-up</div>`:`<div class="note warn"><i class="ti ti-lock" style="font-size:10px"></i>Cancellation window closed</div>`):'';
+    return`<div class="class-card ${cardClass}" style="${isCompleted?'opacity:0.6':''}">
+      <div class="class-row">
+        <div>
+          <div class="class-day">${DAYS[new Date(c.date+'T12:00:00').getDay()]} · ${c.date}</div>
+          <div class="class-time">${c.time}</div>
+          ${tag}
+        </div>
+        <div style="padding-top:4px">${cancelBtn}</div>
+      </div>${tentNote}${cxNote}
+    </div>`;
+  }
+
+  let html='';
+  if(upcoming.length){
+    html+=`<div style="font-size:11px;font-weight:500;color:var(--text-muted);margin-bottom:8px;text-transform:uppercase;letter-spacing:0.5px">Upcoming (${upcoming.length})</div>`;
+    html+=upcoming.map(classCard).join('');
+  }
+  if(past.length){
+    html+=`<div style="font-size:11px;font-weight:500;color:var(--text-muted);margin:${upcoming.length?'14px':0} 0 8px;text-transform:uppercase;letter-spacing:0.5px">Past</div>`;
+    html+=past.slice(0,10).map(classCard).join('');
+    if(past.length>10)html+=`<div style="text-align:center;font-size:12px;color:var(--text-muted);padding:8px">Showing last 10 classes</div>`;
+  }
+  el.innerHTML=html;
+}
+let upgradeTargetId=null;
+function openUpgradeStudent(id){
+  const s=students.find(x=>x.id===id);if(!s)return;
+  upgradeTargetId=id;
+  document.getElementById('upgrade-sub').textContent=s.name+' · currently on trial (R50)';
+  openOv('ov-upgrade-student');
+}
+function confirmUpgradeStudent(){
+  if(!upgradeTargetId)return;
+  const s=students.find(x=>x.id===upgradeTargetId);
+  if(s){
+    s.plan=document.getElementById('upgrade-plan').value;
+    // initialise month statuses for membership plans
+    if(s.plan==='1x'||s.plan==='2x'){
+      const months=getTrackingMonths();
+      if(!monthStatus[s.id])monthStatus[s.id]={};
+      months.forEach(ms=>{if(!monthStatus[s.id][ms])monthStatus[s.id][ms]='tentative';});
+    }
+  }
+  upgradeTargetId=null;
+  closeOv('ov-upgrade-student');
+  renderAStudents();
+}
+updateWhoBar();renderSCal();renderAFinance();
+</script>
+<div class="overlay" id="ov-upgrade-student"><div class="sheet">
+  <div class="handle"></div>
+  <h3>Upgrade student</h3>
+  <p class="sub" id="upgrade-sub"></p>
+  <div style="background:#EAF3DE;border:0.5px solid #C0DD97;border-radius:8px;padding:11px 12px;font-size:12px;color:#3B6D11;margin-bottom:14px;display:flex;gap:7px;align-items:flex-start">
+    <i class="ti ti-arrow-up-circle" style="font-size:15px;flex-shrink:0"></i>Upgrading will move them to a membership or drop-in plan. Their trial booking stays on record.
+  </div>
+  <label>New plan</label>
+  <select id="upgrade-plan">
+    <option value="1x">1 class/week — R540/mo</option>
+    <option value="2x">2 classes/week — R945/mo</option>
+    <option value="dropin">Drop-in only</option>
+  </select>
+  <div style="display:flex;gap:8px;margin-top:4px">
+    <button class="btn-s" style="flex:1;padding:11px;border-radius:8px;border:0.5px solid var(--border-strong);color:var(--text-primary);background:none;font-size:13px;cursor:pointer" onclick="closeOv('ov-upgrade-student')">Cancel</button>
+    <button style="flex:1;padding:11px;border-radius:8px;background:#9333ea;color:white;border:none;font-size:13px;cursor:pointer;font-weight:500" onclick="confirmUpgradeStudent()">Upgrade</button>
+  </div>
+</div></div>
+<div class="overlay" id="ov-day-change"><div class="sheet">
+  <div class="handle"></div>
+  <h3>Change weekly class day</h3>
+  <p class="sub" id="dc-sub">Your current slot will be held until admin approves.</p>
+  <div class="ci" id="dc-current"></div>
+  <div style="background:#EEEDFE;border:0.5px solid #AFA9EC;border-radius:8px;padding:10px 11px;font-size:12px;color:#534AB7;margin-bottom:12px;display:flex;gap:7px;align-items:flex-start">
+    <i class="ti ti-info-circle" style="font-size:14px;flex-shrink:0"></i>Your instructor will approve the change. Your current slot continues until then.
+  </div>
+  <label>New class slot</label>
+  <select id="dc-new-slot"></select>
+  <div style="display:flex;gap:8px;margin-top:4px">
+    <button class="btn-s" style="flex:1;padding:11px;border-radius:8px;border:0.5px solid var(--border-strong);color:var(--text-primary);background:none;font-size:13px;cursor:pointer" onclick="closeOv('ov-day-change')">Cancel</button>
+    <button style="flex:1;padding:11px;border-radius:8px;background:#9333ea;color:white;border:none;font-size:13px;cursor:pointer;font-weight:500" onclick="confirmDayChangeRequest()">Send request</button>
+  </div>
+</div></div>
+
+<div class="overlay" id="ov-add-makeup"><div class="sheet">
+  <div class="handle"></div>
+  <h3>Add make-up credit</h3>
+  <p class="sub">Manually add a make-up credit for a student.</p>
+  <label>Student</label>
+  <select id="mu-student"></select>
+  <label>Reason / missed class</label>
+  <input type="text" id="mu-reason" placeholder="e.g. Monday 17:45 — June">
+  <label>Expiry date</label>
+  <input type="date" id="mu-expiry">
+  <div style="background:#EEEDFE;border:0.5px solid #AFA9EC;border-radius:8px;padding:10px 11px;font-size:12px;color:#534AB7;margin-bottom:12px;display:flex;gap:7px;align-items:flex-start">
+    <i class="ti ti-info-circle" style="font-size:14px;flex-shrink:0"></i>Credit expires 3 months from today by default. Adjust if needed.
+  </div>
+  <div style="display:flex;gap:8px;margin-top:4px">
+    <button class="btn-s" style="flex:1;padding:11px;border-radius:8px;border:0.5px solid var(--border-strong);color:var(--text-primary);background:none;font-size:13px;cursor:pointer" onclick="closeOv('ov-add-makeup')">Cancel</button>
+    <button style="flex:1;padding:11px;border-radius:8px;background:#9333ea;color:white;border:none;font-size:13px;cursor:pointer;font-weight:500" onclick="confirmAddMakeup()">Add credit</button>
+  </div>
+</div></div>
+
+</body>
+</html>
