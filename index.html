@@ -175,7 +175,7 @@ label{font-size:11px;color:var(--text-secondary);margin-bottom:3px;display:block
     <div><div class="logo">DX <span>Pole</span></div><div class="header-sub" id="header-sub">Student view</div></div>
     <div class="mode-toggle">
       <button class="mode-btn active" onclick="setMode('student')" id="mbtn-student">Student</button>
-      <button class="mode-btn" onclick="setMode('admin')" id="mbtn-admin">Admin</button>
+      <button class="mode-btn" onclick="promptAdminPin()" id="mbtn-admin">Admin</button>
     </div>
   </div>
 
@@ -818,6 +818,11 @@ function ashow(id){
   document.querySelectorAll('#anav .nav-btn').forEach(b=>b.classList.remove('active'));
   document.getElementById('screen-'+id).classList.add('active');document.getElementById('anav-'+id).classList.add('active');
   if(id==='a-cal')renderACal();if(id==='a-students')renderAStudents();if(id==='a-payments')renderAPayments();if(id==='a-schedule')renderASchedule();if(id==='a-finance')renderAFinance();
+}
+function promptAdminPin(){
+  const pin=prompt('Enter admin PIN:');
+  if(pin==='32932')setMode('admin');
+  else if(pin!==null)alert('Incorrect PIN.');
 }
 function setMode(m){
   isAdmin=m==='admin';
