@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(gh auth *)",
+      "Bash(git --version)",
+      "PowerShell(gh auth status 2>&1)"
+    ]
+  }
+}
