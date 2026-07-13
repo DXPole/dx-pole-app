@@ -411,6 +411,37 @@ let nextExpId=4,nextMid=3,nextSid=9;
 let currentStudentId=1,viewMonth=new Date(2026,5,1),selectedDate=null,isAdmin=false;
 let cancelTarget=null,bookTarget=null,pendingBookType=null,adminBookTarget=null,editSchedId=null,skipRequestTarget=null;
 
+const DX_STORAGE_KEY='dxpole_data_v1';
+function saveState(){
+  try{
+    const data={schedule,nextSchedId,dropinDates,nextDropinId,students,recurringSlots,monthStatus,bookings,makeups,changeRequests,nextChangeReqId,expenses,nextExpId,nextMid,nextSid,currentStudentId};
+    localStorage.setItem(DX_STORAGE_KEY,JSON.stringify(data));
+  }catch(e){console.error('Failed to save DX Pole data:',e);}
+}
+function loadState(){
+  try{
+    const raw=localStorage.getItem(DX_STORAGE_KEY);
+    if(!raw)return;
+    const data=JSON.parse(raw);
+    if(data.schedule)schedule=data.schedule;
+    if(data.nextSchedId!==undefined)nextSchedId=data.nextSchedId;
+    if(data.dropinDates)dropinDates=data.dropinDates;
+    if(data.nextDropinId!==undefined)nextDropinId=data.nextDropinId;
+    if(data.students)students=data.students;
+    if(data.recurringSlots)recurringSlots=data.recurringSlots;
+    if(data.monthStatus)monthStatus=data.monthStatus;
+    if(data.bookings)bookings=data.bookings;
+    if(data.makeups)makeups=data.makeups;
+    if(data.changeRequests)changeRequests=data.changeRequests;
+    if(data.nextChangeReqId!==undefined)nextChangeReqId=data.nextChangeReqId;
+    if(data.expenses)expenses=data.expenses;
+    if(data.nextExpId!==undefined)nextExpId=data.nextExpId;
+    if(data.nextMid!==undefined)nextMid=data.nextMid;
+    if(data.nextSid!==undefined)nextSid=data.nextSid;
+    if(data.currentStudentId!==undefined)currentStudentId=data.currentStudentId;
+  }catch(e){console.error('Failed to load DX Pole data:',e);}
+}
+
 function now(){return new Date(2026,5,27);}
 function pad(n){return String(n).padStart(2,'0');}
 function dateStr(d){return`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;}
@@ -482,7 +513,7 @@ function renderCal(gridId,monthLabelId,onCellClick){
 
 function changeMonth(dir){viewMonth=new Date(viewMonth.getFullYear(),viewMonth.getMonth()+dir,1);selectedDate=null;isAdmin?renderACal():renderSCal();}
 
-function renderSCal(){
+function renderSCal(){saveState();
   renderCal('s-cal-grid','s-cal-month','selectDayStudent');
   const el=document.getElementById('s-day-classes');
   if(!selectedDate){el.innerHTML=`<div style="font-size:12px;color:var(--text-muted);text-align:center;padding:16px 0">Tap a date to see classes</div>`;return;}
@@ -513,7 +544,7 @@ function renderSCal(){
 function selectDayStudent(ds){selectedDate=ds;renderSCal();}
 function selectDayAdmin(ds){selectedDate=ds;renderACal();}
 
-function renderACal(){
+function renderACal(){saveState();
   renderCal('a-cal-grid','a-cal-month','selectDayAdmin');
   const el=document.getElementById('a-day-classes');
   if(!selectedDate){el.innerHTML=`<div style="font-size:12px;color:var(--text-muted);text-align:center;padding:16px 0">Tap a date to manage</div>`;return;}
@@ -539,7 +570,7 @@ function renderACal(){
   }).join('');
 }
 
-function renderSPayments(){
+function renderSPayments(){saveState();
   const s=curStudent(),el=document.getElementById('s-payment-list');
   if(s.plan==='trial'){el.innerHTML=`<div class="empty"><i class="ti ti-info-circle"></i>Trial student — no monthly payments. Ask your admin to upgrade your plan once you\'re ready to join.</div>`;return;}if(PLAN_ALLOWANCE[s.plan]===0){el.innerHTML=`<div class="empty"><i class="ti ti-info-circle"></i>Drop-in only plan — no monthly payments</div>`;return;}
   const slot=recurringSlots[s.id],sc=slot?schedule.find(x=>x.id===slot.schedId):null;
@@ -566,7 +597,7 @@ function renderSPayments(){
 function openSkipRequest(ms){skipRequestTarget={studentId:currentStudentId,ms};document.getElementById('sr-ci').innerHTML=`<strong>${monthLabel(ms)}</strong><span>Request this month off — no payment due if approved</span>`;openOv('ov-skip-request');}
 function confirmSkipRequest(){if(!skipRequestTarget)return;setMonthStatus(skipRequestTarget.studentId,skipRequestTarget.ms,'skip_requested');closeOv('ov-skip-request');renderSPayments();}
 
-function renderAPayments(){
+function renderAPayments(){saveState();
   const reqBanner=document.getElementById('skip-requests-banner');
   const reqs=[];
   students.forEach(s=>{Object.entries(monthStatus[s.id]||{}).forEach(([ms,st])=>{if(st==='skip_requested')reqs.push({student:s,ms});});});
@@ -614,7 +645,7 @@ function denySkip(sid,ms){setMonthStatus(sid,ms,'due');renderAPayments();if(!isA
 function adminMarkSkip(sid,ms){setMonthStatus(sid,ms,'skipped');renderAPayments();}
 
 let deleteTargetId=null;
-function renderAStudents(){
+function renderAStudents(){saveState();
   const el=document.getElementById('a-student-list'),currentMs=monthStr(now());
   if(!students.length){el.innerHTML=`<div class="empty"><i class="ti ti-users"></i>No students yet</div>`;return;}
   el.innerHTML=students.map(s=>{
@@ -645,7 +676,7 @@ function confirmDeleteStudent(){
   renderAStudents();renderAFinance();
 }
 
-function renderASchedule(){
+function renderASchedule(){saveState();
   const sl=document.getElementById('a-sched-list'),grouped={};
   schedule.forEach(sc=>{if(!grouped[sc.day])grouped[sc.day]=[];grouped[sc.day].push(sc);});
   const order=['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
@@ -656,7 +687,7 @@ function renderASchedule(){
   if(!dropinDates.length)dl.innerHTML=`<div class="empty"><i class="ti ti-calendar"></i>No drop-in dates</div>`;
 }
 
-function renderExpenses(){
+function renderExpenses(){saveState();
   const el=document.getElementById('a-expense-list');
   if(!expenses.length){el.innerHTML=`<div class="empty"><i class="ti ti-receipt"></i>No expenses</div>`;return;}
   el.innerHTML=expenses.map(e=>`<div class="exp-row"><div style="flex:1"><div style="font-size:13px;color:var(--text-primary)">${e.name}</div><span class="exp-type ${e.type==='recurring'?'exp-recurring':'exp-oneoff'}">${e.type==='recurring'?'Monthly':'One-off'}</span></div><span style="font-size:13px;font-weight:500;color:var(--text-primary)">R${e.amount.toLocaleString()}</span><button style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:13px;margin-left:6px" onclick="deleteExpense(${e.id})"><i class="ti ti-trash"></i></button></div>`).join('');
@@ -666,7 +697,7 @@ function confirmAddExpense(){
   const name=document.getElementById('exp-name').value.trim(),amt=parseFloat(document.getElementById('exp-amt').value),type=document.getElementById('exp-type').value;
   if(!name||!amt)return;expenses.push({id:nextExpId++,name,amount:amt,type});closeOv('ov-add-expense');renderExpenses();renderAFinance();
 }
-function renderAFinance(){
+function renderAFinance(){saveState();
   const currentMs=monthStr(now()),paidStudents=students.filter(s=>PLAN_ALLOWANCE[s.plan]>0&&recurringSlots[s.id]&&getMonthStatus(s.id,currentMs)==='paid');
   const income=paidStudents.reduce((a,s)=>a+PLAN_FEE[s.plan],0);
   const recurringCosts=expenses.filter(e=>e.type==='recurring').reduce((a,e)=>a+e.amount,0);
@@ -675,7 +706,7 @@ function renderAFinance(){
   document.getElementById('a-finance-content').innerHTML=`<div class="fin-summary"><div class="fin-title">This month's income (confirmed)</div><div class="fin-val">R${income.toLocaleString()}</div><div class="fin-sub">${paidStudents.length} paid · ${dueCount} still due this month</div><div class="fin-row"><div class="fin-item"><strong>R${recurringCosts.toLocaleString()}</strong>Recurring costs</div><div class="fin-item"><strong>R${oneoffCosts.toLocaleString()}</strong>One-off costs</div><div class="fin-item"><strong style="color:${net>=0?'#9FE1CB':'#f09595'}">R${net.toLocaleString()}</strong>Net</div></div></div>`;
   renderExpenses();
 }
-function renderSMu(){
+function renderSMu(){saveState();
   const mine=makeups.filter(m=>m.studentId===currentStudentId),el=document.getElementById('s-mu-list');
   if(!mine.length){el.innerHTML=`<div class="empty"><i class="ti ti-refresh"></i>No make-up credits</div>`;return;}
   // show active first, then used
@@ -903,7 +934,7 @@ function confirmAddMakeup(){
   renderSMu();
 }
 
-function renderSMyClasses(){
+function renderSMyClasses(){saveState();
   const s=curStudent(),el=document.getElementById('s-myclasses-list');
   const today=todayStr();
   const upcoming=[],past=[];
@@ -1035,6 +1066,7 @@ function confirmUpgradeStudent(){
   closeOv('ov-upgrade-student');
   renderAStudents();
 }
+loadState();
 updateWhoBar();renderSCal();renderAFinance();
 </script>
 <div class="overlay" id="ov-upgrade-student"><div class="sheet">
