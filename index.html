@@ -890,7 +890,7 @@ function openCancel(key,dateS){
   document.getElementById('cx-msg').innerHTML=canCx?`<div class="info-box purple"><i class="ti ti-info-circle" style="font-size:13px;flex-shrink:0"></i>You'll receive a make-up credit valid for 3 months.</div>`:`<div class="info-box amber"><i class="ti ti-alert-triangle" style="font-size:13px;flex-shrink:0"></i>Cancellation window closed. No make-up credit.</div>`;
   openOv('ov-cancel');
 }
-function confirmCancel(){
+async function confirmCancel(){
   if(!cancelTarget)return;const{key,dateS}=cancelTarget,canCx=isCancellable(dateS);
   const isDropin=key.startsWith('dropin-');
   if(bookings[key])bookings[key]=(bookings[key]||[]).filter(x=>x.studentId!==currentStudentId);
@@ -898,7 +898,12 @@ function confirmCancel(){
     const schedId=parseInt(key.split('-')[0]);
     if(!isInstanceCancelled(schedId,dateS,currentStudentId))cancellations.push({schedId,dateS,studentId:currentStudentId});
   }
-  if(canCx){const s=curStudent(),exp=new Date(now());exp.setMonth(exp.getMonth()+3);makeups.push({id:nextMid++,studentId:currentStudentId,studentName:s.name,classDay:dateS,classTime:'',expiry:exp.toISOString().slice(0,10)});}
+  if(canCx){
+    const s=curStudent(),exp=new Date(now());exp.setMonth(exp.getMonth()+3);
+    const newMid=await getNextId('nextMid');
+    nextMid=Math.max(nextMid,newMid+1);
+    makeups.push({id:newMid,studentId:currentStudentId,studentName:s.name,classDay:dateS,classTime:'',expiry:exp.toISOString().slice(0,10)});
+  }
   saveState();closeOv('ov-cancel');renderSCal();
 }
 function openAdminBook(key,dateS,schedId){
@@ -1179,7 +1184,8 @@ async function doSignup(){
     const cred=await auth.createUserWithEmailAndPassword(email,password);
     const uid=cred.user.uid;
     const initials=name.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
-    const newId=nextSid++;
+    const newId=await getNextId('nextSid');
+    nextSid=Math.max(nextSid,newId+1);
     students.push({id:newId,name,initials,plan:'trial',email,uid});
     await db.collection('users').doc(uid).set({name,email,studentId:newId});
     saveState();
@@ -1190,6 +1196,16 @@ async function doSignup(){
   }
 }
 
+async function getNextId(counterField){
+  const ref=db.collection('studio').doc('state');
+  return db.runTransaction(async tx=>{
+    const doc=await tx.get(ref);
+    const data=doc.data()||{};
+    const current=data[counterField]??DEFAULTS[counterField];
+    tx.set(ref,{[counterField]:current+1},{merge:true});
+    return current;
+  });
+}
 let myLinkInfo=null;
 function tryBackfillLink(){
   if(!myLinkInfo)return;
@@ -1201,17 +1217,20 @@ function tryBackfillLink(){
   saveState();
 }
 let pendingAuthUser=null;
-function tryProvisionUser(){
+async function tryProvisionUser(){
   if(!pendingAuthUser||!_appReady)return;
   const user=pendingAuthUser;pendingAuthUser=null;
-  const name=(user.displayName||user.email.split('@')[0]).trim();
-  const initials=name.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
-  const newId=nextSid++;
-  students.push({id:newId,name,initials,plan:'trial',email:user.email,uid:user.uid});
-  db.collection('users').doc(user.uid).set({name,email:user.email,studentId:newId}).catch(e=>console.error('Provision error:',e));
-  saveState();
-  currentStudentId=newId;
-  updateWhoBar();renderSCal();
+  try{
+    const newId=await getNextId('nextSid');
+    nextSid=Math.max(nextSid,newId+1);
+    const name=(user.displayName||user.email.split('@')[0]).trim();
+    const initials=name.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
+    students.push({id:newId,name,initials,plan:'trial',email:user.email,uid:user.uid});
+    await db.collection('users').doc(user.uid).set({name,email:user.email,studentId:newId});
+    saveState();
+    currentStudentId=newId;
+    updateWhoBar();renderSCal();
+  }catch(e){console.error('Provision error:',e);}
 }
 auth.onAuthStateChanged(async user=>{
   if(!user){
@@ -1235,7 +1254,7 @@ auth.onAuthStateChanged(async user=>{
         // they have somewhere to land; admin can merge it into the right student
         // record via the "Link login" action.
         pendingAuthUser=user;
-        tryProvisionUser();
+        await tryProvisionUser();
       }
     }catch(e){console.error(e);}
   }
