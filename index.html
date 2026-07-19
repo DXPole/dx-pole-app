@@ -1190,6 +1190,16 @@ async function doSignup(){
   }
 }
 
+let myLinkInfo=null;
+function tryBackfillLink(){
+  if(!myLinkInfo)return;
+  const s=getStudent(myLinkInfo.studentId);
+  if(!s)return;
+  if(s.uid===myLinkInfo.uid&&s.email===(myLinkInfo.email||s.email||''))return;
+  s.uid=myLinkInfo.uid;
+  if(myLinkInfo.email)s.email=myLinkInfo.email;
+  saveState();
+}
 auth.onAuthStateChanged(async user=>{
   if(!user){
     document.getElementById('auth-overlay').style.display='flex';
@@ -1201,7 +1211,12 @@ auth.onAuthStateChanged(async user=>{
   if(!isAdm){
     try{
       const udoc=await db.collection('users').doc(user.uid).get();
-      if(udoc.exists)currentStudentId=udoc.data().studentId;
+      if(udoc.exists){
+        const data=udoc.data();
+        currentStudentId=data.studentId;
+        myLinkInfo={uid:user.uid,email:data.email||user.email||'',studentId:data.studentId};
+        tryBackfillLink();
+      }
     }catch(e){console.error(e);}
   }
   document.getElementById('auth-overlay').style.display='none';
@@ -1229,6 +1244,7 @@ db.collection('studio').doc('state').onSnapshot(doc=>{
     nextMid=d.nextMid??DEFAULTS.nextMid;
     nextSid=d.nextSid??DEFAULTS.nextSid;
     if(normalizeRecurringSlots())saveState();
+    tryBackfillLink();
   } else {
     saveState();
   }
