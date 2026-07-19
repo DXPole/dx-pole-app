@@ -320,6 +320,8 @@ label{font-size:11px;color:var(--text-secondary);margin-bottom:3px;display:block
   <label>Plan</label>
   <select id="ns-plan"><option value="trial">Trial class — R50</option><option value="1x">1 class/week — R540/mo</option><option value="2x">2 classes/week — R945/mo</option><option value="dropin">Drop-in only</option></select>
   <label>Payment</label><select id="ns-pay"><option value="paid">Paid</option><option value="due">Due</option></select>
+  <label>Email <span style="color:var(--text-muted)">(optional — set now if they haven't signed up yet)</span></label>
+  <input type="email" id="ns-email" placeholder="student@email.com">
   <button class="btn-full btn-p" onclick="confirmAddStudent()">Add student</button>
   <button class="btn-full btn-s" onclick="closeOv('ov-add-student')" style="margin-top:6px">Cancel</button>
 </div></div>
@@ -398,7 +400,7 @@ const DEFAULTS={
     {id:7,name:'Lena Ferreira',initials:'LF',plan:'1x'},
     {id:8,name:'Aisha Omar',initials:'AO',plan:'2x'},
   ],
-  recurringSlots:{1:{schedId:1},2:{schedId:1},4:{schedId:5},6:{schedId:5},7:{schedId:3},8:{schedId:2}},
+  recurringSlots:{1:[1],2:[1],4:[5],6:[5],7:[3],8:[2]},
   monthStatus:{
     1:{'2026-05':'paid','2026-06':'paid','2026-07':'due','2026-08':'tentative','2026-09':'tentative'},
     2:{'2026-05':'paid','2026-06':'paid','2026-07':'tentative','2026-08':'tentative','2026-09':'tentative'},
@@ -409,6 +411,7 @@ const DEFAULTS={
     8:{'2026-05':'paid','2026-06':'due','2026-07':'tentative','2026-08':'tentative','2026-09':'tentative'},
   },
   bookings:{'dropin-101':[{studentId:5,type:'dropin',status:'confirmed'}]},
+  cancellations:[],
   makeups:[
     {id:1,studentId:3,studentName:'Priya Pillay',classDay:'Monday',classTime:'17:45',expiry:'2026-07-15'},
     {id:2,studentId:8,studentName:'Aisha Omar',classDay:'Thursday',classTime:'19:00',expiry:'2026-08-02'},
@@ -426,7 +429,7 @@ const DEFAULTS={
 function saveState(){
   db.collection('studio').doc('state').set({
     schedule,nextSchedId,dropinDates,nextDropinId,students,recurringSlots,
-    monthStatus,bookings,makeups,changeRequests,nextChangeReqId,
+    monthStatus,bookings,cancellations,makeups,changeRequests,nextChangeReqId,
     expenses,nextExpId,nextMid,nextSid,
   }).catch(e=>console.error('Save error:',e));
 }
@@ -435,6 +438,7 @@ let schedule=DEFAULTS.schedule,nextSchedId=DEFAULTS.nextSchedId;
 let dropinDates=DEFAULTS.dropinDates,nextDropinId=DEFAULTS.nextDropinId;
 let students=DEFAULTS.students;
 let recurringSlots=DEFAULTS.recurringSlots,monthStatus=DEFAULTS.monthStatus,bookings=DEFAULTS.bookings;
+let cancellations=DEFAULTS.cancellations;
 let makeups=DEFAULTS.makeups,changeRequests=DEFAULTS.changeRequests,nextChangeReqId=DEFAULTS.nextChangeReqId;
 let expenses=DEFAULTS.expenses,nextExpId=DEFAULTS.nextExpId,nextMid=DEFAULTS.nextMid,nextSid=DEFAULTS.nextSid;
 let currentStudentId=parseInt(localStorage.getItem('dxpole_student'))||1;
@@ -449,6 +453,23 @@ function monthLabel(ms){const[y,m]=ms.split('-');return`${MONTHS[parseInt(m)-1]}
 function todayStr(){return dateStr(now());}
 function getStudent(id){return students.find(s=>s.id===id);}
 function curStudent(){return getStudent(currentStudentId);}
+function getSlotIds(sid){
+  const v=recurringSlots[sid];
+  if(!v)return[];
+  if(Array.isArray(v))return v;
+  if(v.schedId!=null)return[v.schedId];
+  return[];
+}
+function getSlotScheds(sid){return getSlotIds(sid).map(id=>schedule.find(x=>x.id===id)).filter(Boolean);}
+function setSlotIds(sid,ids){recurringSlots[sid]=ids;}
+function normalizeRecurringSlots(){
+  let changed=false;
+  Object.keys(recurringSlots).forEach(k=>{
+    const v=recurringSlots[k];
+    if(v&&!Array.isArray(v)&&v.schedId!=null){recurringSlots[k]=[v.schedId];changed=true;}
+  });
+  return changed;
+}
 function getMonthStatus(sid,ms){return(monthStatus[sid]||{})[ms]||'tentative';}
 function getOldestMakeup(studentId){
   const mine=makeups.filter(m=>m.studentId===studentId&&!m.used).sort((a,b)=>a.expiry.localeCompare(b.expiry));
@@ -459,12 +480,15 @@ function isCancellable(ds){const today=todayStr();if(ds>today)return true;if(ds<
 function getTrackingMonths(){const months=[],base=now();for(let i=-2;i<=3;i++){const d=new Date(base.getFullYear(),base.getMonth()+i,1);months.push(monthStr(d));}return months;}
 function capColor(n,cap){if(n>=cap)return'#e24b4a';if(n>=cap*0.7)return'#EF9F27';return'#9333ea';}
 
+function isInstanceCancelled(schedId,dateS,studentId){return cancellations.some(c=>c.schedId===schedId&&c.dateS===dateS&&c.studentId===studentId);}
 function getEffectiveBookings(schedId,dateS){
   const key=`${schedId}-${dateS}`,result=[],seen=new Set();
   (bookings[key]||[]).forEach(b=>{result.push({...b,status:b.status||'confirmed',source:'oneoff'});seen.add(b.studentId);});
-  Object.entries(recurringSlots).forEach(([sid,slot])=>{
-    if(slot.schedId!==schedId)return;
-    const studentId=parseInt(sid);if(seen.has(studentId))return;
+  students.forEach(stu=>{
+    const studentId=stu.id;
+    if(!getSlotIds(studentId).includes(schedId))return;
+    if(seen.has(studentId))return;
+    if(isInstanceCancelled(schedId,dateS,studentId))return;
     const ms=monthStr(new Date(dateS)),st=getMonthStatus(studentId,ms);
     if(st==='skipped')return;
     const bookSt=(st==='paid'||st==='due')?'confirmed':'tentative';
@@ -495,8 +519,7 @@ function renderCal(gridId,monthLabelId,onCellClick){
     if(isAdmin){
       classes.filter(c=>c.type==='recurring').forEach(c=>{getEffectiveBookings(c.schedId,ds).forEach(b=>{if(b.status==='confirmed')hasConfirmed=true;else hasTentative=true;});});
     }else{
-      const slot=recurringSlots[currentStudentId];
-      if(slot){const st=getMonthStatus(currentStudentId,monthStr(cellDate));if(st==='paid'||st==='due')hasConfirmed=true;else if(st==='tentative'||st==='skip_requested')hasTentative=true;}
+      if(getSlotIds(currentStudentId).length){const st=getMonthStatus(currentStudentId,monthStr(cellDate));if(st==='paid'||st==='due')hasConfirmed=true;else if(st==='tentative'||st==='skip_requested')hasTentative=true;}
     }
     const monthSt=!isAdmin?getMonthStatus(currentStudentId,monthStr(new Date(year,month,1))):null;
     const isSkipped=!isAdmin&&monthSt==='skipped';
@@ -533,6 +556,7 @@ function renderSCal(){
       else{btn=`<button class="action-btn cancel" onclick="openCancel('${cls.key}','${selectedDate}')"${!canCx?' disabled style="opacity:0.4;cursor:default"':''}>Cancel</button>`;note=canCx?`<div class="note"><i class="ti ti-clock" style="font-size:11px"></i>Cancel before 12:00 for make-up</div>`:`<div class="note warn"><i class="ti ti-clock" style="font-size:11px"></i>Cancellation closed</div>`;}
     }else if(cls.type==='dropin'){btn=`<button class="action-btn dropin-btn" onclick="openBook('${cls.key}','${selectedDate}','dropin')">Drop-in R160</button>`;}
     else if(isFull){btn=`<span class="action-btn disabled">Full</span>`;}
+    else if(getSlotIds(s.id).length>=PLAN_ALLOWANCE[s.plan]){btn=`<span class="action-btn disabled" title="Change your slot from the Payments tab">Plan full</span>`;}
     else{btn=`<button class="action-btn" onclick="openBook('${cls.key}','${selectedDate}','membership')">Book</button>`;}
     const cardClass=isMine?(myB.status==='tentative'?'my-tentative':myB.type==='dropin'?'my-dropin':'my-confirmed'):'';
     const typeTag=isMine?(myB.status==='tentative'?`<span class="tag tag-tentative">Spot held</span>`:myB.type==='dropin'?`<span class="tag tag-drop">Drop-in · R160</span>`:`<span class="tag tag-confirmed"><i class="ti ti-check" style="font-size:9px"></i> Confirmed</span>`):(cls.type==='dropin'?`<span class="tag tag-drop">Drop-in only</span>`:'');
@@ -572,13 +596,14 @@ function renderACal(){
 function renderSPayments(){
   const s=curStudent(),el=document.getElementById('s-payment-list');
   if(s.plan==='trial'){el.innerHTML=`<div class="empty"><i class="ti ti-info-circle"></i>Trial student — no monthly payments. Ask your admin to upgrade your plan once you\'re ready to join.</div>`;return;}if(PLAN_ALLOWANCE[s.plan]===0){el.innerHTML=`<div class="empty"><i class="ti ti-info-circle"></i>Drop-in only plan — no monthly payments</div>`;return;}
-  const slot=recurringSlots[s.id],sc=slot?schedule.find(x=>x.id===slot.schedId):null;
+  const scs=getSlotScheds(s.id);
   const months=getTrackingMonths(),currentMs=monthStr(now());
   const pendingChange=changeRequests.find(r=>r.studentId===s.id);
+  const pendingFromSc=pendingChange?schedule.find(x=>x.id===pendingChange.fromSchedId):null;
   const pendingToSc=pendingChange?schedule.find(x=>x.id===pendingChange.toSchedId):null;
-  let html=`<div class="pay-summary"><div class="ps-title">Your weekly slot</div><div class="ps-slot">${sc?sc.day+' · '+sc.time:'No recurring slot booked'}</div><div class="ps-sub">${PLAN_LABEL[s.plan]} · Pay via EFT or cash</div>${sc?`<button onclick="openDayChangeRequest()" style="margin-top:8px;font-size:11px;padding:4px 10px;border-radius:20px;border:0.5px solid #a89bb5;background:none;color:#e8c5f5;cursor:pointer"><i class="ti ti-arrows-exchange" style="font-size:11px"></i> Change class day</button>`:''}</div>`;
+  let html=`<div class="pay-summary"><div class="ps-title">Your weekly slot${scs.length>1?'s':''}</div><div class="ps-slot">${scs.length?scs.map(sc=>sc.day+' · '+sc.time).join(' & '):'No recurring slot booked'}</div><div class="ps-sub">${PLAN_LABEL[s.plan]} · Pay via EFT or cash</div>${scs.length?`<button onclick="openDayChangeRequest()" style="margin-top:8px;font-size:11px;padding:4px 10px;border-radius:20px;border:0.5px solid #a89bb5;background:none;color:#e8c5f5;cursor:pointer"><i class="ti ti-arrows-exchange" style="font-size:11px"></i> Change class day</button>`:''}</div>`;
   if(pendingChange&&pendingToSc){
-    html+=`<div style="background:#EEEDFE;border:0.5px solid #AFA9EC;border-radius:8px;padding:10px 11px;font-size:12px;color:#534AB7;margin-bottom:10px;display:flex;gap:7px;align-items:center"><i class="ti ti-send" style="font-size:14px;flex-shrink:0"></i><div>Day change requested: <strong>${pendingToSc.day} ${pendingToSc.time}</strong> · waiting for approval</div></div>`;
+    html+=`<div style="background:#EEEDFE;border:0.5px solid #AFA9EC;border-radius:8px;padding:10px 11px;font-size:12px;color:#534AB7;margin-bottom:10px;display:flex;gap:7px;align-items:center"><i class="ti ti-send" style="font-size:14px;flex-shrink:0"></i><div>Day change requested: ${pendingFromSc?`<strong>${pendingFromSc.day} ${pendingFromSc.time}</strong> → `:''}<strong>${pendingToSc.day} ${pendingToSc.time}</strong> · waiting for approval</div></div>`;
   }
   months.forEach(ms=>{
     const st=getMonthStatus(s.id,ms),fee=PLAN_FEE[s.plan],isCurrent=ms===currentMs;
@@ -609,7 +634,7 @@ function renderAPayments(){
   const months=getTrackingMonths(),currentMs=monthStr(now()),el=document.getElementById('a-payment-list');
   let html='';
   months.forEach(ms=>{
-    const memberStudents=students.filter(s=>PLAN_ALLOWANCE[s.plan]>0&&recurringSlots[s.id]);
+    const memberStudents=students.filter(s=>PLAN_ALLOWANCE[s.plan]>0&&getSlotIds(s.id).length);
     if(!memberStudents.length)return;
     const paid=memberStudents.filter(s=>getMonthStatus(s.id,ms)==='paid').length;
     const due=memberStudents.filter(s=>getMonthStatus(s.id,ms)==='due').length;
@@ -630,8 +655,8 @@ function renderAPayments(){
           <button class="action-sm a-gray" onclick="adminMarkSkip(${s.id},'${ms}')">Mark skip</button>
         </div>`;
       }
-      const slot=recurringSlots[s.id],sc=slot?schedule.find(x=>x.id===slot.schedId):null;
-      return`<div class="month-card ${st==='paid'?'paid':st==='due'?'due':st==='skipped'?'skipped':st==='skip_requested'?'requested':'tentative'}" style="margin-bottom:6px"><div class="av" style="flex-shrink:0">${s.initials}</div><div style="flex:1;min-width:0"><div class="month-label" style="font-size:13px">${s.name}</div><div class="month-sub">${sc?sc.day+' '+sc.time:''} · ${PLAN_LABEL[s.plan].split('·')[0].trim()}</div></div><div class="month-action" style="text-align:right">${pill}${actionHtml}</div></div>`;
+      const scs=getSlotScheds(s.id);
+      return`<div class="month-card ${st==='paid'?'paid':st==='due'?'due':st==='skipped'?'skipped':st==='skip_requested'?'requested':'tentative'}" style="margin-bottom:6px"><div class="av" style="flex-shrink:0">${s.initials}</div><div style="flex:1;min-width:0"><div class="month-label" style="font-size:13px">${s.name}</div><div class="month-sub">${scs.map(sc=>sc.day+' '+sc.time).join(' & ')} · ${PLAN_LABEL[s.plan].split('·')[0].trim()}</div></div><div class="month-action" style="text-align:right">${pill}${actionHtml}</div></div>`;
     }).join('')}</div>`;
   });
   el.innerHTML=html||`<div class="empty"><i class="ti ti-users"></i>No membership students yet</div>`;
@@ -649,34 +674,78 @@ function renderAStudents(){
   if(!students.length){el.innerHTML=`<div class="empty"><i class="ti ti-users"></i>No students yet</div>`;return;}
   const sorted=[...students].sort((a,b)=>a.name.localeCompare(b.name));
   el.innerHTML=sorted.map(s=>{
-    const slot=recurringSlots[s.id],sc=slot?schedule.find(x=>x.id===slot.schedId):null;
+    const scs=getSlotScheds(s.id);
     const mu=makeups.filter(m=>m.studentId===s.id).length,mst=getMonthStatus(s.id,currentMs);
-    const isTrial=s.plan==='trial';return`<div class="student-row"><div class="av" style="${isTrial?'background:#FAEEDA;color:#854F0B':''}}">${s.initials}</div><div style="flex:1;min-width:0"><div class="sname">${s.name}</div><div class="splan">${PLAN_LABEL[s.plan]}</div>${sc?`<div style="font-size:11px;color:#9333ea;margin-top:1px"><i class="ti ti-repeat" style="font-size:10px"></i> ${sc.day} ${sc.time}</div>`:''} ${mu>0?`<span style="font-size:10px;padding:2px 7px;border-radius:20px;font-weight:500;background:#EEEDFE;color:#534AB7;margin-top:2px;display:inline-block"><i class="ti ti-refresh" style="font-size:10px"></i> ${mu} make-up</span>`:''}</div><div style="display:flex;align-items:center;gap:6px;flex-shrink:0">${isTrial?`<button onclick="openUpgradeStudent(${s.id})" style="font-size:10px;padding:3px 8px;border-radius:20px;background:#9333ea;color:white;border:none;cursor:pointer;font-weight:500">Upgrade</button>`:`<span class="status-pill ${mst==='paid'?'sp-paid':mst==='due'?'sp-due':mst==='skipped'||mst==='skip_requested'?'sp-requested':'sp-tentative'}">${mst==='paid'?'Paid':mst==='due'?'Due':mst==='skipped'?'Month off':mst==='skip_requested'?'Skip req.':'Upcoming'}</span>`}<button onclick="openRenameStudent(${s.id})" title="Edit name" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:15px;padding:4px;border-radius:6px;line-height:1"><i class="ti ti-pencil"></i></button><button onclick="openDeleteConfirm(${s.id})" title="Remove student" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:15px;padding:4px;border-radius:6px;line-height:1"><i class="ti ti-user-minus"></i></button></div></div>`;
+    const isTrial=s.plan==='trial',linked=!!s.uid;
+    return`<div class="student-row"><div class="av" style="${isTrial?'background:#FAEEDA;color:#854F0B':''}}">${s.initials}</div><div style="flex:1;min-width:0"><div class="sname">${s.name}</div><div class="splan">${PLAN_LABEL[s.plan]}</div>${scs.length?`<div style="font-size:11px;color:#9333ea;margin-top:1px"><i class="ti ti-repeat" style="font-size:10px"></i> ${scs.map(sc=>sc.day+' '+sc.time).join(' & ')}</div>`:''}${s.email?`<div style="font-size:11px;color:var(--text-muted);margin-top:1px"><i class="ti ti-mail" style="font-size:10px"></i> ${s.email}</div>`:''}<div style="display:flex;gap:5px;flex-wrap:wrap;margin-top:2px">${mu>0?`<span style="font-size:10px;padding:2px 7px;border-radius:20px;font-weight:500;background:#EEEDFE;color:#534AB7;display:inline-block"><i class="ti ti-refresh" style="font-size:10px"></i> ${mu} make-up</span>`:''}<span style="font-size:10px;padding:2px 7px;border-radius:20px;font-weight:500;display:inline-block;${linked?'background:#EAF3DE;color:#3B6D11':'background:var(--surface-1);color:var(--text-muted);border:0.5px solid var(--border)'}">${linked?'Linked':'Not signed up'}</span></div></div><div style="display:flex;align-items:center;gap:6px;flex-shrink:0">${!isTrial?`<span class="status-pill ${mst==='paid'?'sp-paid':mst==='due'?'sp-due':mst==='skipped'||mst==='skip_requested'?'sp-requested':'sp-tentative'}">${mst==='paid'?'Paid':mst==='due'?'Due':mst==='skipped'?'Month off':mst==='skip_requested'?'Skip req.':'Upcoming'}</span>`:''}${!linked?`<button onclick="openLinkAccount(${s.id})" title="Link an existing login" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:15px;padding:4px;border-radius:6px;line-height:1"><i class="ti ti-link"></i></button>`:''}<button onclick="openEditStudent(${s.id})" title="Edit student" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:15px;padding:4px;border-radius:6px;line-height:1"><i class="ti ti-pencil"></i></button><button onclick="openDeleteConfirm(${s.id})" title="Remove student" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:15px;padding:4px;border-radius:6px;line-height:1"><i class="ti ti-user-minus"></i></button></div></div>`;
   }).join('');
 }
-let renameTargetId=null;
-function openRenameStudent(id){
+let editTargetId=null;
+function openEditStudent(id){
   const s=students.find(x=>x.id===id);if(!s)return;
-  renameTargetId=id;
-  document.getElementById('rename-input').value=s.name;
-  openOv('ov-rename-student');
-  setTimeout(()=>document.getElementById('rename-input').focus(),100);
+  editTargetId=id;
+  document.getElementById('edit-name').value=s.name;
+  document.getElementById('edit-plan').value=s.plan;
+  document.getElementById('edit-email').value=s.email||'';
+  openOv('ov-edit-student');
+  setTimeout(()=>document.getElementById('edit-name').focus(),100);
 }
-function confirmRenameStudent(){
-  const name=document.getElementById('rename-input').value.trim();
-  if(!name||!renameTargetId)return;
-  const s=students.find(x=>x.id===renameTargetId);
-  if(s){s.name=name;s.initials=name.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);}
-  renameTargetId=null;saveState();closeOv('ov-rename-student');renderAStudents();updateWhoBar();
+function confirmEditStudent(){
+  const name=document.getElementById('edit-name').value.trim();
+  if(!name||!editTargetId)return;
+  const s=students.find(x=>x.id===editTargetId);if(!s){editTargetId=null;return;}
+  s.name=name;
+  s.initials=name.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
+  s.email=document.getElementById('edit-email').value.trim();
+  const newPlan=document.getElementById('edit-plan').value,planChanged=newPlan!==s.plan;
+  s.plan=newPlan;
+  if(planChanged){
+    const allowance=PLAN_ALLOWANCE[newPlan],ids=getSlotIds(s.id);
+    if(ids.length>allowance)setSlotIds(s.id,ids.slice(0,allowance));
+    if(allowance>0){
+      const months=getTrackingMonths();
+      if(!monthStatus[s.id])monthStatus[s.id]={};
+      months.forEach(ms=>{if(!monthStatus[s.id][ms])monthStatus[s.id][ms]='tentative';});
+    }
+  }
+  editTargetId=null;saveState();closeOv('ov-edit-student');renderAStudents();updateWhoBar();
 }
 function openDeleteConfirm(id){
   const s=students.find(x=>x.id===id);if(!s)return;
   deleteTargetId=id;
   document.getElementById('del-av').textContent=s.initials;
   document.getElementById('del-name').textContent=s.name;
-  const slot=recurringSlots[s.id],sc=slot?schedule.find(x=>x.id===slot.schedId):null;
-  document.getElementById('del-detail').textContent=PLAN_LABEL[s.plan]+(sc?' · '+sc.day+' '+sc.time:'');
+  const scs=getSlotScheds(s.id);
+  document.getElementById('del-detail').textContent=PLAN_LABEL[s.plan]+(scs.length?' · '+scs.map(sc=>sc.day+' '+sc.time).join(' & '):'');
   openOv('ov-confirm-delete');
+}
+let linkTargetId=null;
+function openLinkAccount(id){
+  const target=students.find(x=>x.id===id);if(!target)return;
+  linkTargetId=id;
+  document.getElementById('link-sub').textContent=`Choose the signed-up account to link to ${target.name}. This merges their login into this profile and removes the duplicate record.`;
+  const candidates=students.filter(x=>x.id!==id&&x.uid);
+  const list=document.getElementById('link-list');
+  list.innerHTML=candidates.length?candidates.map(c=>`<div class="student-row" style="cursor:pointer" onclick="confirmLinkAccount(${id},${c.id})"><div class="av">${c.initials}</div><div><div class="sname">${c.name}</div><div class="splan">${c.email||'no email on file'}</div></div></div>`).join(''):`<div class="empty"><i class="ti ti-user-off"></i>No signed-up accounts available to link yet</div>`;
+  openOv('ov-link-account');
+}
+function confirmLinkAccount(targetId,sourceId){
+  const target=students.find(x=>x.id===targetId),source=students.find(x=>x.id===sourceId);
+  if(!target||!source)return;
+  target.uid=source.uid;
+  target.email=source.email||target.email||'';
+  makeups.forEach(m=>{if(m.studentId===sourceId)m.studentId=targetId;});
+  Object.keys(bookings).forEach(key=>{(bookings[key]||[]).forEach(b=>{if(b.studentId===sourceId)b.studentId=targetId;});});
+  cancellations.forEach(c=>{if(c.studentId===sourceId)c.studentId=targetId;});
+  if(monthStatus[sourceId]){
+    if(!monthStatus[targetId])monthStatus[targetId]={};
+    Object.entries(monthStatus[sourceId]).forEach(([ms,st])=>{if(!monthStatus[targetId][ms])monthStatus[targetId][ms]=st;});
+  }
+  if(source.uid)db.collection('users').doc(source.uid).set({studentId:targetId},{merge:true}).catch(e=>console.error('Link error:',e));
+  students=students.filter(x=>x.id!==sourceId);
+  delete recurringSlots[sourceId];delete monthStatus[sourceId];
+  if(currentStudentId===sourceId)currentStudentId=targetId;
+  linkTargetId=null;saveState();closeOv('ov-link-account');renderAStudents();updateWhoBar();
 }
 function confirmDeleteStudent(){
   if(!deleteTargetId)return;
@@ -685,6 +754,7 @@ function confirmDeleteStudent(){
   delete monthStatus[deleteTargetId];
   makeups=makeups.filter(m=>m.studentId!==deleteTargetId);
   Object.keys(bookings).forEach(key=>{bookings[key]=(bookings[key]||[]).filter(b=>b.studentId!==deleteTargetId);});
+  cancellations=cancellations.filter(c=>c.studentId!==deleteTargetId);
   if(currentStudentId===deleteTargetId&&students.length>0){currentStudentId=students[0].id;updateWhoBar();}
   deleteTargetId=null;saveState();
   closeOv('ov-confirm-delete');
@@ -713,11 +783,11 @@ function confirmAddExpense(){
   if(!name||!amt)return;expenses.push({id:nextExpId++,name,amount:amt,type});saveState();closeOv('ov-add-expense');renderExpenses();renderAFinance();
 }
 function renderAFinance(){
-  const currentMs=monthStr(now()),paidStudents=students.filter(s=>PLAN_ALLOWANCE[s.plan]>0&&recurringSlots[s.id]&&getMonthStatus(s.id,currentMs)==='paid');
+  const currentMs=monthStr(now()),paidStudents=students.filter(s=>PLAN_ALLOWANCE[s.plan]>0&&getSlotIds(s.id).length&&getMonthStatus(s.id,currentMs)==='paid');
   const income=paidStudents.reduce((a,s)=>a+PLAN_FEE[s.plan],0);
   const recurringCosts=expenses.filter(e=>e.type==='recurring').reduce((a,e)=>a+e.amount,0);
   const oneoffCosts=expenses.filter(e=>e.type==='oneoff').reduce((a,e)=>a+e.amount,0);
-  const net=income-recurringCosts-oneoffCosts,dueCount=students.filter(s=>PLAN_ALLOWANCE[s.plan]>0&&recurringSlots[s.id]&&getMonthStatus(s.id,currentMs)==='due').length;
+  const net=income-recurringCosts-oneoffCosts,dueCount=students.filter(s=>PLAN_ALLOWANCE[s.plan]>0&&getSlotIds(s.id).length&&getMonthStatus(s.id,currentMs)==='due').length;
   document.getElementById('a-finance-content').innerHTML=`<div class="fin-summary"><div class="fin-title">This month's income (confirmed)</div><div class="fin-val">R${income.toLocaleString()}</div><div class="fin-sub">${paidStudents.length} paid · ${dueCount} still due this month</div><div class="fin-row"><div class="fin-item"><strong>R${recurringCosts.toLocaleString()}</strong>Recurring costs</div><div class="fin-item"><strong>R${oneoffCosts.toLocaleString()}</strong>One-off costs</div><div class="fin-item"><strong style="color:${net>=0?'#9FE1CB':'#f09595'}">R${net.toLocaleString()}</strong>Net</div></div></div>`;
   renderExpenses();
 }
@@ -760,10 +830,11 @@ function renderSMu(){
   el.innerHTML=html;
 }
 function updateWhoBar(){
-  const s=curStudent(),slot=recurringSlots[s.id],sc=slot?schedule.find(x=>x.id===slot.schedId):null;
+  const s=curStudent();if(!s)return;
+  const scs=getSlotScheds(s.id);
   document.getElementById('s-avatar').textContent=s.initials;
   document.getElementById('s-name').textContent=s.name;
-  document.getElementById('s-plan').textContent=PLAN_LABEL[s.plan]+(sc?' · '+sc.day+' '+sc.time:'');
+  document.getElementById('s-plan').textContent=PLAN_LABEL[s.plan]+(scs.length?' · '+scs.map(sc=>sc.day+' '+sc.time).join(' & '):'');
 }
 function openBook(key,dateS,forceType){
   bookTarget={key,dateS};pendingBookType=forceType||'membership';
@@ -788,7 +859,8 @@ function openBook(key,dateS,forceType){
     }
   }else{
     box.className='info-box purple';
-    document.getElementById('bk-info-text').textContent="You'll be tentatively held every week in this slot. Confirmed once monthly payment is received.";
+    const s=curStudent(),slotNum=getSlotIds(s.id).length+1,allowance=PLAN_ALLOWANCE[s.plan];
+    document.getElementById('bk-info-text').textContent=allowance>1?`You'll be tentatively held every week in this slot (dedicated slot ${slotNum} of ${allowance}). Confirmed once monthly payment is received.`:"You'll be tentatively held every week in this slot. Confirmed once monthly payment is received.";
     btn.className='btn-p';btn.textContent='Book weekly slot';
   }
   openOv('ov-book');
@@ -796,7 +868,8 @@ function openBook(key,dateS,forceType){
 function confirmBook(){
   if(!bookTarget)return;const{key,dateS}=bookTarget,s=curStudent();
   if(pendingBookType==='membership'&&!key.startsWith('dropin-')){
-    const schedId=parseInt(key.split('-')[0]);recurringSlots[s.id]={schedId};
+    const schedId=parseInt(key.split('-')[0]),ids=getSlotIds(s.id);
+    if(!ids.includes(schedId)&&ids.length<PLAN_ALLOWANCE[s.plan])setSlotIds(s.id,[...ids,schedId]);
     const months=getTrackingMonths();months.forEach(ms=>{if(!monthStatus[s.id])monthStatus[s.id]={};if(!monthStatus[s.id][ms])monthStatus[s.id][ms]='tentative';});
   }else{
     if(!bookings[key])bookings[key]=[];
@@ -819,7 +892,12 @@ function openCancel(key,dateS){
 }
 function confirmCancel(){
   if(!cancelTarget)return;const{key,dateS}=cancelTarget,canCx=isCancellable(dateS);
+  const isDropin=key.startsWith('dropin-');
   if(bookings[key])bookings[key]=(bookings[key]||[]).filter(x=>x.studentId!==currentStudentId);
+  if(!isDropin){
+    const schedId=parseInt(key.split('-')[0]);
+    if(!isInstanceCancelled(schedId,dateS,currentStudentId))cancellations.push({schedId,dateS,studentId:currentStudentId});
+  }
   if(canCx){const s=curStudent(),exp=new Date(now());exp.setMonth(exp.getMonth()+3);makeups.push({id:nextMid++,studentId:currentStudentId,studentName:s.name,classDay:dateS,classTime:'',expiry:exp.toISOString().slice(0,10)});}
   saveState();closeOv('ov-cancel');renderSCal();
 }
@@ -851,7 +929,7 @@ function deleteDropin(id){dropinDates=dropinDates.filter(x=>x.id!==id);saveState
 function confirmAddStudent(){
   const name=document.getElementById('ns-name').value.trim();if(!name)return;
   const initials=name.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
-  students.push({id:nextSid++,name,initials,plan:document.getElementById('ns-plan').value});saveState();closeOv('ov-add-student');renderAStudents();
+  students.push({id:nextSid++,name,initials,plan:document.getElementById('ns-plan').value,email:document.getElementById('ns-email').value.trim()});saveState();closeOv('ov-add-student');renderAStudents();
 }
 function sshow(id){
   document.querySelectorAll('#student-app .screen').forEach(s=>s.classList.remove('active'));
@@ -890,32 +968,40 @@ function switchStudent(id){currentStudentId=id;localStorage.setItem('dxpole_stud
 
 
 function openDayChangeRequest(){
-  const s=curStudent(),slot=recurringSlots[s.id],sc=slot?schedule.find(x=>x.id===slot.schedId):null;
-  if(!sc)return;
-  // check if already has a pending request
+  const s=curStudent(),scs=getSlotScheds(s.id);
+  if(!scs.length)return;
   const pending=changeRequests.find(r=>r.studentId===s.id);
   if(pending){
     const newSc=schedule.find(x=>x.id===pending.toSchedId);
     alert('You already have a pending request to move to '+( newSc?newSc.day+' '+newSc.time:'another slot')+'. Please wait for your instructor to respond.');
     return;
   }
-  document.getElementById('dc-current').innerHTML=`<strong>Current slot</strong><span>${sc.day} · ${sc.time}</span>`;
-  // populate other slots (exclude current)
-  const sel=document.getElementById('dc-new-slot');
-  sel.innerHTML=schedule.filter(x=>x.id!==sc.id).map(x=>`<option value="${x.id}">${x.day} · ${x.time}</option>`).join('');
-  if(!sel.innerHTML){sel.innerHTML='<option disabled>No other slots available</option>';}
+  const fromSel=document.getElementById('dc-from-slot');
+  document.getElementById('dc-from-row').style.display=scs.length>1?'':'none';
+  fromSel.innerHTML=scs.map(sc=>`<option value="${sc.id}">${sc.day} · ${sc.time}</option>`).join('');
+  updateDcNewSlotOptions();
   openOv('ov-day-change');
 }
+function updateDcNewSlotOptions(){
+  const s=curStudent(),fromId=parseInt(document.getElementById('dc-from-slot').value),ids=getSlotIds(s.id);
+  const fromSc=schedule.find(x=>x.id===fromId);
+  document.getElementById('dc-current').innerHTML=fromSc?`<strong>Current slot</strong><span>${fromSc.day} · ${fromSc.time}</span>`:'';
+  const sel=document.getElementById('dc-new-slot');
+  sel.innerHTML=schedule.filter(x=>x.id!==fromId&&!ids.includes(x.id)).map(x=>`<option value="${x.id}">${x.day} · ${x.time}</option>`).join('');
+  if(!sel.innerHTML)sel.innerHTML='<option disabled>No other slots available</option>';
+}
 function confirmDayChangeRequest(){
-  const s=curStudent(),toSchedId=parseInt(document.getElementById('dc-new-slot').value);
-  const slot=recurringSlots[s.id];if(!slot||!toSchedId)return;
-  changeRequests.push({id:nextChangeReqId++,studentId:s.id,studentName:s.name,fromSchedId:slot.schedId,toSchedId});
+  const s=curStudent(),fromSchedId=parseInt(document.getElementById('dc-from-slot').value),toSchedId=parseInt(document.getElementById('dc-new-slot').value);
+  if(!fromSchedId||!toSchedId)return;
+  changeRequests.push({id:nextChangeReqId++,studentId:s.id,studentName:s.name,fromSchedId,toSchedId});
   saveState();closeOv('ov-day-change');
   renderSPayments();
 }
 function approveChangeRequest(reqId){
   const req=changeRequests.find(r=>r.id===reqId);if(!req)return;
-  if(recurringSlots[req.studentId])recurringSlots[req.studentId].schedId=req.toSchedId;
+  const ids=getSlotIds(req.studentId),idx=ids.indexOf(req.fromSchedId);
+  if(idx>=0)ids[idx]=req.toSchedId;else ids.push(req.toSchedId);
+  setSlotIds(req.studentId,ids);
   changeRequests=changeRequests.filter(r=>r.id!==reqId);
   saveState();renderAPayments();renderAStudents();
 }
@@ -958,42 +1044,32 @@ function renderSMyClasses(){
   const today=todayStr();
   const upcoming=[],past=[];
 
-  // collect recurring slot bookings for next 3 months
-  const slot=recurringSlots[s.id];
-  if(slot){
-    const sc=schedule.find(x=>x.id===slot.schedId);
-    if(sc){
-      const end=new Date(now().getFullYear(),now().getMonth()+3,0);
-      for(let d=new Date(now());d<=end;d.setDate(d.getDate()+1)){
-        if(DAYS[d.getDay()]===sc.day){
-          const ds=dateStr(new Date(d));
-          const ms=monthStr(new Date(ds));
-          const st=getMonthStatus(s.id,ms);
-          if(st==='skipped')continue;
-          const bookSt=(st==='paid'||st==='due')?'confirmed':'tentative';
-          const arr=ds>=today?upcoming:past;
-          arr.push({key:`${sc.id}-${ds}`,date:ds,time:sc.time,type:'membership',status:bookSt,day:sc.day});
-        }
+  // collect recurring slot bookings for next 3 months (and past), for every dedicated slot
+  getSlotScheds(s.id).forEach(sc=>{
+    const end=new Date(now().getFullYear(),now().getMonth()+3,0);
+    for(let d=new Date(now());d<=end;d.setDate(d.getDate()+1)){
+      if(DAYS[d.getDay()]===sc.day){
+        const ds=dateStr(new Date(d));
+        if(isInstanceCancelled(sc.id,ds,s.id))continue;
+        const ms=monthStr(new Date(ds));
+        const st=getMonthStatus(s.id,ms);
+        if(st==='skipped')continue;
+        const bookSt=(st==='paid'||st==='due')?'confirmed':'tentative';
+        const arr=ds>=today?upcoming:past;
+        arr.push({key:`${sc.id}-${ds}`,date:ds,time:sc.time,type:'membership',status:bookSt,day:sc.day});
       }
     }
-  }
-
-  // collect past recurring
-  if(slot){
-    const sc=schedule.find(x=>x.id===slot.schedId);
-    if(sc){
-      const start=new Date(now().getFullYear(),now().getMonth()-2,1);
-      for(let d=new Date(start);d<now();d.setDate(d.getDate()+1)){
-        if(DAYS[d.getDay()]===sc.day){
-          const ds=dateStr(new Date(d));
-          const ms=monthStr(new Date(ds));
-          const st=getMonthStatus(s.id,ms);
-          if(st==='skipped')continue;
-          past.unshift({key:`${sc.id}-${ds}`,date:ds,time:sc.time,type:'membership',status:'completed',day:sc.day});
-        }
+    const start=new Date(now().getFullYear(),now().getMonth()-2,1);
+    for(let d=new Date(start);d<now();d.setDate(d.getDate()+1)){
+      if(DAYS[d.getDay()]===sc.day){
+        const ds=dateStr(new Date(d));
+        const ms=monthStr(new Date(ds));
+        const st=getMonthStatus(s.id,ms);
+        if(st==='skipped')continue;
+        past.unshift({key:`${sc.id}-${ds}`,date:ds,time:sc.time,type:'membership',status:isInstanceCancelled(sc.id,ds,s.id)?'cancelled':'completed',day:sc.day});
       }
     }
-  }
+  });
 
   // one-off bookings (drop-ins, makeup)
   Object.keys(bookings).forEach(key=>{
@@ -1026,19 +1102,20 @@ function renderSMyClasses(){
   }
 
   function classCard(c){
-    const isTent=c.status==='tentative',isCompleted=c.status==='completed';
+    const isTent=c.status==='tentative',isCompleted=c.status==='completed',isCancelled=c.status==='cancelled';
     const isDropin=c.type==='dropin'||c.bookingType==='dropin',isMakeup=c.type==='makeup'||c.bookingType==='makeup';
-    const canCx=!isCompleted&&isCancellable(c.date)&&!isTent;
+    const canCx=!isCompleted&&!isCancelled&&isCancellable(c.date)&&!isTent;
     let tag='',cardClass='';
-    if(isCompleted){tag=`<span class="tag" style="background:var(--surface-1);color:var(--text-muted);border:0.5px solid var(--border)">Completed</span>`;cardClass='';}
+    if(isCancelled){tag=`<span class="tag" style="background:var(--surface-1);color:var(--text-muted);border:0.5px solid var(--border)">Cancelled</span>`;cardClass='';}
+    else if(isCompleted){tag=`<span class="tag" style="background:var(--surface-1);color:var(--text-muted);border:0.5px solid var(--border)">Completed</span>`;cardClass='';}
     else if(isTent){tag=`<span class="tag tag-tentative">Spot held</span>`;cardClass='my-tentative';}
     else if(isMakeup){tag=`<span class="tag tag-confirmed"><i class="ti ti-check" style="font-size:9px"></i> Make-up used</span>`;cardClass='my-confirmed';}
     else if(isDropin){tag=`<span class="tag tag-drop">Drop-in · R160</span>`;cardClass='my-dropin';}
     else{tag=`<span class="tag tag-confirmed"><i class="ti ti-check" style="font-size:9px"></i> Confirmed</span>`;cardClass='my-confirmed';}
     const cancelBtn=canCx?`<button class="action-btn cancel" onclick="openCancel('${c.key}','${c.date}')">Cancel</button>`:'';
     const tentNote=isTent?`<div class="note amber"><i class="ti ti-clock" style="font-size:10px"></i>Spot held · confirmed once payment received</div>`:'';
-    const cxNote=!isTent&&!isCompleted?(canCx?`<div class="note"><i class="ti ti-clock" style="font-size:10px"></i>Cancel before 12:00 for make-up</div>`:`<div class="note warn"><i class="ti ti-lock" style="font-size:10px"></i>Cancellation window closed</div>`):'';
-    return`<div class="class-card ${cardClass}" style="${isCompleted?'opacity:0.6':''}">
+    const cxNote=!isTent&&!isCompleted&&!isCancelled?(canCx?`<div class="note"><i class="ti ti-clock" style="font-size:10px"></i>Cancel before 12:00 for make-up</div>`:`<div class="note warn"><i class="ti ti-lock" style="font-size:10px"></i>Cancellation window closed</div>`):'';
+    return`<div class="class-card ${cardClass}" style="${isCompleted||isCancelled?'opacity:0.6':''}">
       <div class="class-row">
         <div>
           <div class="class-day">${DAYS[new Date(c.date+'T12:00:00').getDay()]} · ${c.date}</div>
@@ -1061,29 +1138,6 @@ function renderSMyClasses(){
     if(past.length>10)html+=`<div style="text-align:center;font-size:12px;color:var(--text-muted);padding:8px">Showing last 10 classes</div>`;
   }
   el.innerHTML=html;
-}
-let upgradeTargetId=null;
-function openUpgradeStudent(id){
-  const s=students.find(x=>x.id===id);if(!s)return;
-  upgradeTargetId=id;
-  document.getElementById('upgrade-sub').textContent=s.name+' · currently on trial (R50)';
-  openOv('ov-upgrade-student');
-}
-function confirmUpgradeStudent(){
-  if(!upgradeTargetId)return;
-  const s=students.find(x=>x.id===upgradeTargetId);
-  if(s){
-    s.plan=document.getElementById('upgrade-plan').value;
-    // initialise month statuses for membership plans
-    if(s.plan==='1x'||s.plan==='2x'){
-      const months=getTrackingMonths();
-      if(!monthStatus[s.id])monthStatus[s.id]={};
-      months.forEach(ms=>{if(!monthStatus[s.id][ms])monthStatus[s.id][ms]='tentative';});
-    }
-  }
-  upgradeTargetId=null;saveState();
-  closeOv('ov-upgrade-student');
-  renderAStudents();
 }
 const auth=firebase.auth();
 const ADMIN_EMAIL='dxpole.ssw@gmail.com';
@@ -1126,7 +1180,7 @@ async function doSignup(){
     const uid=cred.user.uid;
     const initials=name.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
     const newId=nextSid++;
-    students.push({id:newId,name,initials,plan:'trial'});
+    students.push({id:newId,name,initials,plan:'trial',email,uid});
     await db.collection('users').doc(uid).set({name,email,studentId:newId});
     saveState();
     currentStudentId=newId;
@@ -1166,6 +1220,7 @@ db.collection('studio').doc('state').onSnapshot(doc=>{
     recurringSlots=d.recurringSlots??DEFAULTS.recurringSlots;
     monthStatus=d.monthStatus??DEFAULTS.monthStatus;
     bookings=d.bookings??DEFAULTS.bookings;
+    cancellations=d.cancellations??DEFAULTS.cancellations;
     makeups=d.makeups??DEFAULTS.makeups;
     changeRequests=d.changeRequests??DEFAULTS.changeRequests;
     nextChangeReqId=d.nextChangeReqId??DEFAULTS.nextChangeReqId;
@@ -1173,6 +1228,7 @@ db.collection('studio').doc('state').onSnapshot(doc=>{
     nextExpId=d.nextExpId??DEFAULTS.nextExpId;
     nextMid=d.nextMid??DEFAULTS.nextMid;
     nextSid=d.nextSid??DEFAULTS.nextSid;
+    if(normalizeRecurringSlots())saveState();
   } else {
     saveState();
   }
@@ -1211,28 +1267,14 @@ db.collection('studio').doc('state').onSnapshot(doc=>{
     </div>
   </div>
 </div>
-<div class="overlay" id="ov-upgrade-student"><div class="sheet">
-  <div class="handle"></div>
-  <h3>Upgrade student</h3>
-  <p class="sub" id="upgrade-sub"></p>
-  <div style="background:#EAF3DE;border:0.5px solid #C0DD97;border-radius:8px;padding:11px 12px;font-size:12px;color:#3B6D11;margin-bottom:14px;display:flex;gap:7px;align-items:flex-start">
-    <i class="ti ti-arrow-up-circle" style="font-size:15px;flex-shrink:0"></i>Upgrading will move them to a membership or drop-in plan. Their trial booking stays on record.
-  </div>
-  <label>New plan</label>
-  <select id="upgrade-plan">
-    <option value="1x">1 class/week — R540/mo</option>
-    <option value="2x">2 classes/week — R945/mo</option>
-    <option value="dropin">Drop-in only</option>
-  </select>
-  <div style="display:flex;gap:8px;margin-top:4px">
-    <button class="btn-s" style="flex:1;padding:11px;border-radius:8px;border:0.5px solid var(--border-strong);color:var(--text-primary);background:none;font-size:13px;cursor:pointer" onclick="closeOv('ov-upgrade-student')">Cancel</button>
-    <button style="flex:1;padding:11px;border-radius:8px;background:#9333ea;color:white;border:none;font-size:13px;cursor:pointer;font-weight:500" onclick="confirmUpgradeStudent()">Upgrade</button>
-  </div>
-</div></div>
 <div class="overlay" id="ov-day-change"><div class="sheet">
   <div class="handle"></div>
   <h3>Change weekly class day</h3>
   <p class="sub" id="dc-sub">Your current slot will be held until your instructor approves.</p>
+  <div id="dc-from-row" style="display:none">
+    <label>Which slot do you want to change?</label>
+    <select id="dc-from-slot" onchange="updateDcNewSlotOptions()"></select>
+  </div>
   <div class="ci" id="dc-current"></div>
   <div style="background:#EEEDFE;border:0.5px solid #AFA9EC;border-radius:8px;padding:10px 11px;font-size:12px;color:#534AB7;margin-bottom:12px;display:flex;gap:7px;align-items:flex-start">
     <i class="ti ti-info-circle" style="font-size:14px;flex-shrink:0"></i>Your instructor will approve the change. Your current slot continues until then.
@@ -1264,16 +1306,32 @@ db.collection('studio').doc('state').onSnapshot(doc=>{
   </div>
 </div></div>
 
-<div class="overlay" id="ov-rename-student"><div class="sheet">
+<div class="overlay" id="ov-edit-student"><div class="sheet">
   <div class="handle"></div>
-  <h3>Edit student name</h3>
-  <p class="sub">Updates their name and initials everywhere.</p>
+  <h3>Edit student</h3>
+  <p class="sub">Update their name, subscription plan, or email.</p>
   <label>Full name</label>
-  <input type="text" id="rename-input" placeholder="e.g. Lerato Mokoena">
+  <input type="text" id="edit-name" placeholder="e.g. Lerato Mokoena">
+  <label>Plan</label>
+  <select id="edit-plan">
+    <option value="trial">Trial class — R50</option>
+    <option value="1x">1 class/week — R540/mo</option>
+    <option value="2x">2 classes/week — R945/mo</option>
+    <option value="dropin">Drop-in only</option>
+  </select>
+  <label>Email <span style="color:var(--text-muted)">(optional — for your reference, or to pre-link before they sign up)</span></label>
+  <input type="email" id="edit-email" placeholder="student@email.com">
   <div class="btn-row">
-    <button class="btn-s" onclick="closeOv('ov-rename-student')">Cancel</button>
-    <button class="btn-p" onclick="confirmRenameStudent()">Save</button>
+    <button class="btn-s" onclick="closeOv('ov-edit-student')">Cancel</button>
+    <button class="btn-p" onclick="confirmEditStudent()">Save</button>
   </div>
+</div></div>
+<div class="overlay" id="ov-link-account"><div class="sheet">
+  <div class="handle"></div>
+  <h3>Link login</h3>
+  <p class="sub" id="link-sub"></p>
+  <div id="link-list"></div>
+  <button class="btn-full btn-s" onclick="closeOv('ov-link-account')" style="margin-top:10px">Cancel</button>
 </div></div>
 </body>
 </html>
