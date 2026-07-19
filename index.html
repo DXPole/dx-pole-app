@@ -426,7 +426,12 @@ const DEFAULTS={
   nextExpId:4,nextMid:3,nextSid:9,currentStudentId:1,
 };
 
+let _hasSyncedData=false;
 function saveState(){
+  if(!_hasSyncedData){
+    console.error('Refused to save: local data has not been confirmed in sync with the server yet. This prevents overwriting real data with stale/placeholder data.');
+    return;
+  }
   db.collection('studio').doc('state').set({
     schedule,nextSchedId,dropinDates,nextDropinId,students,recurringSlots,
     monthStatus,bookings,cancellations,makeups,changeRequests,nextChangeReqId,
@@ -1296,10 +1301,14 @@ db.collection('studio').doc('state').onSnapshot(doc=>{
     nextExpId=d.nextExpId??DEFAULTS.nextExpId;
     nextMid=d.nextMid??DEFAULTS.nextMid;
     nextSid=d.nextSid??DEFAULTS.nextSid;
+    _hasSyncedData=true;
     if(normalizeRecurringSlots())saveState();
     tryBackfillLink();
     tryProvisionUser();
-  } else {
+  } else if(doc.exists===false){
+    // confirmed via a real (non-error) snapshot that the document has never been
+    // created — safe to seed it with defaults exactly once.
+    _hasSyncedData=true;
     saveState();
   }
   if(!_appReady){
@@ -1312,6 +1321,10 @@ db.collection('studio').doc('state').onSnapshot(doc=>{
 },err=>{
   console.error('Firestore error:',err);
   if(!_appReady){_appReady=true;updateWhoBar();renderSCal();renderAFinance();}
+  const w=document.createElement('div');
+  w.textContent='Could not load live data — what you see below may be out of date or placeholder content. Please check your connection and reload before making any changes.';
+  w.style.cssText='position:fixed;top:0;left:0;right:0;background:#e24b4a;color:#fff;font-size:12px;padding:8px 12px;text-align:center;z-index:999';
+  document.body.prepend(w);
 });
 </script>
 <div id="auth-overlay" style="display:flex;position:fixed;inset:0;background:var(--surface-0);z-index:200;flex-direction:column;align-items:center;justify-content:center;padding:24px">
