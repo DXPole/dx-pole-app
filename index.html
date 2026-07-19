@@ -720,16 +720,30 @@ function openDeleteConfirm(id){
   openOv('ov-confirm-delete');
 }
 let linkTargetId=null;
+let linkSourceId=null;
 function openLinkAccount(id){
   const target=students.find(x=>x.id===id);if(!target)return;
-  linkTargetId=id;
-  document.getElementById('link-sub').textContent=`Choose the signed-up account to link to ${target.name}. This merges their login into this profile and removes the duplicate record.`;
+  linkTargetId=id;linkSourceId=null;
+  document.getElementById('link-sub').textContent=`Choose the signed-up account to link to ${target.name}. Tap one, then confirm — nothing happens until you confirm.`;
+  document.getElementById('link-confirm-box').style.display='none';
+  document.getElementById('link-confirm-btn').disabled=true;
   const candidates=students.filter(x=>x.id!==id&&x.uid);
   const list=document.getElementById('link-list');
-  list.innerHTML=candidates.length?candidates.map(c=>`<div class="student-row" style="cursor:pointer" onclick="confirmLinkAccount(${id},${c.id})"><div class="av">${c.initials}</div><div><div class="sname">${c.name}</div><div class="splan">${c.email||'no email on file'}</div></div></div>`).join(''):`<div class="empty"><i class="ti ti-user-off"></i>No signed-up accounts available to link yet</div>`;
+  list.innerHTML=candidates.length?candidates.map(c=>`<div class="student-row" id="link-cand-${c.id}" style="cursor:pointer" onclick="selectLinkCandidate(${c.id})"><div class="av">${c.initials}</div><div><div class="sname">${c.name}</div><div class="splan">${c.email||'no email on file'}</div></div></div>`).join(''):`<div class="empty"><i class="ti ti-user-off"></i>No signed-up accounts available to link yet</div>`;
   openOv('ov-link-account');
 }
-function confirmLinkAccount(targetId,sourceId){
+function selectLinkCandidate(sourceId){
+  const target=students.find(x=>x.id===linkTargetId),source=students.find(x=>x.id===sourceId);
+  if(!target||!source)return;
+  linkSourceId=sourceId;
+  document.querySelectorAll('#link-list .student-row').forEach(r=>r.style.background='');
+  const row=document.getElementById(`link-cand-${sourceId}`);if(row)row.style.background='var(--bg-accent)';
+  document.getElementById('link-confirm-box').style.display='';
+  document.getElementById('link-confirm-box').innerHTML=`<strong>Keep:</strong> ${target.name} (${PLAN_LABEL[target.plan]})<br><strong>Delete:</strong> ${source.name} (${source.email||'no email'}) — their login moves to ${target.name}.<br>This cannot be undone.`;
+  document.getElementById('link-confirm-btn').disabled=false;
+}
+function confirmLinkAccount(){
+  const targetId=linkTargetId,sourceId=linkSourceId;
   const target=students.find(x=>x.id===targetId),source=students.find(x=>x.id===sourceId);
   if(!target||!source)return;
   target.uid=source.uid;
@@ -745,7 +759,7 @@ function confirmLinkAccount(targetId,sourceId){
   students=students.filter(x=>x.id!==sourceId);
   delete recurringSlots[sourceId];delete monthStatus[sourceId];
   if(currentStudentId===sourceId)currentStudentId=targetId;
-  linkTargetId=null;saveState();closeOv('ov-link-account');renderAStudents();updateWhoBar();
+  linkTargetId=null;linkSourceId=null;saveState();closeOv('ov-link-account');renderAStudents();updateWhoBar();
 }
 function confirmDeleteStudent(){
   if(!deleteTargetId)return;
@@ -967,7 +981,7 @@ function openOv(id){
   if(id==='ov-switch'){document.getElementById('switch-list').innerHTML=[...students].sort((a,b)=>a.name.localeCompare(b.name)).map(s=>`<div class="student-row" style="cursor:pointer" onclick="switchStudent(${s.id})"><div class="av">${s.initials}</div><div><div class="sname">${s.name}</div><div class="splan">${PLAN_LABEL[s.plan]}</div></div>${s.id===currentStudentId?`<i class="ti ti-check" style="margin-left:auto;color:#9333ea;font-size:16px"></i>`:''}</div>`).join('');}
   document.getElementById(id).classList.add('open');
 }
-function closeOv(id){document.getElementById(id).classList.remove('open');cancelTarget=null;bookTarget=null;adminBookTarget=null;pendingBookType=null;editSchedId=null;skipRequestTarget=null;}
+function closeOv(id){document.getElementById(id).classList.remove('open');cancelTarget=null;bookTarget=null;adminBookTarget=null;pendingBookType=null;editSchedId=null;skipRequestTarget=null;if(id==='ov-link-account'){linkTargetId=null;linkSourceId=null;}}
 function switchStudent(id){currentStudentId=id;localStorage.setItem('dxpole_student',String(id));updateWhoBar();closeOv('ov-switch');renderSCal();}
 
 
@@ -1387,7 +1401,11 @@ db.collection('studio').doc('state').onSnapshot(doc=>{
   <h3>Link login</h3>
   <p class="sub" id="link-sub"></p>
   <div id="link-list"></div>
-  <button class="btn-full btn-s" onclick="closeOv('ov-link-account')" style="margin-top:10px">Cancel</button>
+  <div id="link-confirm-box" style="display:none;background:#FAEEDA;border:0.5px solid #F0C382;border-radius:8px;padding:11px 12px;font-size:12px;color:#854F0B;margin-top:10px"></div>
+  <div class="btn-row" style="margin-top:10px">
+    <button class="btn-s" onclick="closeOv('ov-link-account')">Cancel</button>
+    <button id="link-confirm-btn" class="btn-p" disabled onclick="confirmLinkAccount()">Confirm merge</button>
+  </div>
 </div></div>
 </body>
 </html>
