@@ -1200,6 +1200,19 @@ function tryBackfillLink(){
   if(myLinkInfo.email)s.email=myLinkInfo.email;
   saveState();
 }
+let pendingAuthUser=null;
+function tryProvisionUser(){
+  if(!pendingAuthUser||!_appReady)return;
+  const user=pendingAuthUser;pendingAuthUser=null;
+  const name=(user.displayName||user.email.split('@')[0]).trim();
+  const initials=name.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
+  const newId=nextSid++;
+  students.push({id:newId,name,initials,plan:'trial',email:user.email,uid:user.uid});
+  db.collection('users').doc(user.uid).set({name,email:user.email,studentId:newId}).catch(e=>console.error('Provision error:',e));
+  saveState();
+  currentStudentId=newId;
+  updateWhoBar();renderSCal();
+}
 auth.onAuthStateChanged(async user=>{
   if(!user){
     document.getElementById('auth-overlay').style.display='flex';
@@ -1216,6 +1229,13 @@ auth.onAuthStateChanged(async user=>{
         currentStudentId=data.studentId;
         myLinkInfo={uid:user.uid,email:data.email||user.email||'',studentId:data.studentId};
         tryBackfillLink();
+      }else{
+        // account exists in Firebase Auth but was never linked to a student record
+        // (e.g. created directly in the Firebase console) — provision one now so
+        // they have somewhere to land; admin can merge it into the right student
+        // record via the "Link login" action.
+        pendingAuthUser=user;
+        tryProvisionUser();
       }
     }catch(e){console.error(e);}
   }
@@ -1245,6 +1265,7 @@ db.collection('studio').doc('state').onSnapshot(doc=>{
     nextSid=d.nextSid??DEFAULTS.nextSid;
     if(normalizeRecurringSlots())saveState();
     tryBackfillLink();
+    tryProvisionUser();
   } else {
     saveState();
   }
