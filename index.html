@@ -261,6 +261,8 @@ label{font-size:11px;color:var(--text-secondary);margin-bottom:3px;display:block
     </div>
     <div class="screen" id="screen-a-finance">
       <div id="a-finance-content"></div>
+      <div class="section-hd">Backup <button class="add-btn" onclick="exportBackup()"><i class="ti ti-download"></i> Download backup</button></div>
+      <div style="font-size:11px;color:var(--text-muted);margin-bottom:14px">Downloads everything — students, bookings, payments, schedule — as a JSON file to this device. Worth doing every so often and saving it somewhere safe.</div>
       <div class="section-hd">Expenses <button class="add-btn" onclick="openOv('ov-add-expense')"><i class="ti ti-plus"></i> Add</button></div>
       <div id="a-expense-list"></div>
       <div class="section-hd" style="margin-top:14px">Fee schedule</div>
@@ -807,6 +809,20 @@ function deleteExpense(id){expenses=expenses.filter(e=>e.id!==id);saveState(['ex
 function confirmAddExpense(){
   const name=document.getElementById('exp-name').value.trim(),amt=parseFloat(document.getElementById('exp-amt').value),type=document.getElementById('exp-type').value;
   if(!name||!amt)return;expenses.push({id:nextExpId++,name,amount:amt,type});saveState(['expenses','nextExpId']);closeOv('ov-add-expense');renderExpenses();renderAFinance();
+}
+function exportBackup(){
+  const data={
+    exportedAt:new Date().toISOString(),
+    schedule,nextSchedId,dropinDates,nextDropinId,students,recurringSlots,
+    monthStatus,bookings,cancellations,makeups,changeRequests,nextChangeReqId,
+    expenses,nextExpId,nextMid,nextSid,
+  };
+  const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;a.download=`dxpole-backup-${todayStr()}.json`;
+  document.body.appendChild(a);a.click();document.body.removeChild(a);
+  URL.revokeObjectURL(url);
 }
 function renderAFinance(){
   const currentMs=monthStr(now()),paidStudents=students.filter(s=>PLAN_ALLOWANCE[s.plan]>0&&getSlotIds(s.id).length&&getMonthStatus(s.id,currentMs)==='paid');
