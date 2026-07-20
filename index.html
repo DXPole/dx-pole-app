@@ -570,8 +570,10 @@ function renderSCal(){
       else{btn=`<button class="action-btn cancel" onclick="openCancel('${cls.key}','${selectedDate}')"${!canCx?' disabled style="opacity:0.4;cursor:default"':''}>Cancel</button>`;note=canCx?`<div class="note"><i class="ti ti-clock" style="font-size:11px"></i>Cancel before 12:00 for make-up</div>`:`<div class="note warn"><i class="ti ti-clock" style="font-size:11px"></i>Cancellation closed</div>`;}
     }else if(cls.type==='dropin'){btn=`<button class="action-btn dropin-btn" onclick="openBook('${cls.key}','${selectedDate}','dropin')">Drop-in R160</button>`;}
     else if(isFull){btn=`<span class="action-btn disabled">Full</span>`;}
-    else if(getSlotIds(s.id).length>=PLAN_ALLOWANCE[s.plan]){btn=`<span class="action-btn disabled" title="Change your slot from the Payments tab">Plan full</span>`;}
-    else{btn=`<button class="action-btn" onclick="openBook('${cls.key}','${selectedDate}','membership')">Book</button>`;}
+    else{
+      const canClaimSlot=getSlotIds(s.id).length<PLAN_ALLOWANCE[s.plan];
+      btn=`<div style="display:flex;flex-direction:column;gap:4px;align-items:flex-end">${canClaimSlot?`<button class="action-btn" onclick="openBook('${cls.key}','${selectedDate}','membership')">Book</button>`:''}<button class="action-btn dropin-btn" onclick="openBook('${cls.key}','${selectedDate}','dropin')">Use make-up / Drop-in</button></div>`;
+    }
     const cardClass=isMine?(myB.status==='tentative'?'my-tentative':myB.type==='dropin'?'my-dropin':'my-confirmed'):'';
     const typeTag=isMine?(myB.status==='tentative'?`<span class="tag tag-tentative">Spot held</span>`:myB.type==='dropin'?`<span class="tag tag-drop">Drop-in · R160</span>`:`<span class="tag tag-confirmed"><i class="ti ti-check" style="font-size:9px"></i> Confirmed</span>`):(cls.type==='dropin'?`<span class="tag tag-drop">Drop-in only</span>`:'');
     return`<div class="class-card ${cardClass}"><div class="class-row"><div><div class="class-day">${DAYS[new Date(selectedDate).getDay()]} · ${selectedDate}</div><div class="class-time">${cls.time}</div><div class="class-meta">${allB.length}/${cls.cap} spots</div>${typeTag}<div class="cap-bar"><div class="cap-fill" style="width:${pct}%;background:${capColor(allB.length,cls.cap)}"></div></div></div><div style="padding-top:4px">${btn}</div></div>${note}</div>`;
@@ -691,7 +693,7 @@ function renderAStudents(){
     const scs=getSlotScheds(s.id);
     const mu=makeups.filter(m=>m.studentId===s.id).length,mst=getMonthStatus(s.id,currentMs);
     const isTrial=s.plan==='trial',linked=!!s.uid;
-    return`<div class="student-row"><div class="av" style="${isTrial?'background:#FAEEDA;color:#854F0B':''}}">${s.initials}</div><div style="flex:1;min-width:0"><div class="sname">${s.name}</div><div class="splan">${PLAN_LABEL[s.plan]}</div>${scs.length?`<div style="font-size:11px;color:#9333ea;margin-top:1px"><i class="ti ti-repeat" style="font-size:10px"></i> ${scs.map(sc=>sc.day+' '+sc.time).join(' & ')}</div>`:''}${s.email?`<div style="font-size:11px;color:var(--text-muted);margin-top:1px"><i class="ti ti-mail" style="font-size:10px"></i> ${s.email}</div>`:''}<div style="display:flex;gap:5px;flex-wrap:wrap;margin-top:2px">${mu>0?`<span style="font-size:10px;padding:2px 7px;border-radius:20px;font-weight:500;background:#EEEDFE;color:#534AB7;display:inline-block"><i class="ti ti-refresh" style="font-size:10px"></i> ${mu} make-up</span>`:''}<span style="font-size:10px;padding:2px 7px;border-radius:20px;font-weight:500;display:inline-block;${linked?'background:#EAF3DE;color:#3B6D11':'background:var(--surface-1);color:var(--text-muted);border:0.5px solid var(--border)'}">${linked?'Linked':'Not signed up'}</span></div></div><div style="display:flex;align-items:center;gap:6px;flex-shrink:0">${!isTrial?`<span class="status-pill ${mst==='paid'?'sp-paid':mst==='due'?'sp-due':mst==='skipped'||mst==='skip_requested'?'sp-requested':'sp-tentative'}">${mst==='paid'?'Paid':mst==='due'?'Due':mst==='skipped'?'Month off':mst==='skip_requested'?'Skip req.':'Upcoming'}</span>`:''}${!linked?`<button onclick="openLinkAccount(${s.id})" title="Link an existing login" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:15px;padding:4px;border-radius:6px;line-height:1"><i class="ti ti-link"></i></button>`:''}<button onclick="openEditStudent(${s.id})" title="Edit student" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:15px;padding:4px;border-radius:6px;line-height:1"><i class="ti ti-pencil"></i></button><button onclick="openDeleteConfirm(${s.id})" title="Remove student" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:15px;padding:4px;border-radius:6px;line-height:1"><i class="ti ti-user-minus"></i></button></div></div>`;
+    return`<div class="student-row"><div class="av" style="${isTrial?'background:#FAEEDA;color:#854F0B':''}}">${s.initials}</div><div style="flex:1;min-width:0"><div class="sname">${s.name}</div><div class="splan">${PLAN_LABEL[s.plan]}</div>${scs.length?`<div style="font-size:11px;color:#9333ea;margin-top:1px"><i class="ti ti-repeat" style="font-size:10px"></i> ${scs.map(sc=>sc.day+' '+sc.time).join(' & ')}</div>`:''}${s.email?`<div style="font-size:11px;color:var(--text-muted);margin-top:1px"><i class="ti ti-mail" style="font-size:10px"></i> ${s.email}</div>`:''}<div style="display:flex;gap:5px;flex-wrap:wrap;margin-top:2px">${mu>0?`<button onclick="openManageMakeups(${s.id})" style="font-size:10px;padding:2px 7px;border-radius:20px;font-weight:500;background:#EEEDFE;color:#534AB7;border:none;cursor:pointer;display:inline-flex;align-items:center;gap:2px"><i class="ti ti-refresh" style="font-size:10px"></i> ${mu} make-up</button>`:''}<span style="font-size:10px;padding:2px 7px;border-radius:20px;font-weight:500;display:inline-block;${linked?'background:#EAF3DE;color:#3B6D11':'background:var(--surface-1);color:var(--text-muted);border:0.5px solid var(--border)'}">${linked?'Linked':'Not signed up'}</span></div></div><div style="display:flex;align-items:center;gap:6px;flex-shrink:0">${!isTrial?`<span class="status-pill ${mst==='paid'?'sp-paid':mst==='due'?'sp-due':mst==='skipped'||mst==='skip_requested'?'sp-requested':'sp-tentative'}">${mst==='paid'?'Paid':mst==='due'?'Due':mst==='skipped'?'Month off':mst==='skip_requested'?'Skip req.':'Upcoming'}</span>`:''}${!linked?`<button onclick="openLinkAccount(${s.id})" title="Link an existing login" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:15px;padding:4px;border-radius:6px;line-height:1"><i class="ti ti-link"></i></button>`:''}<button onclick="openEditStudent(${s.id})" title="Edit student" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:15px;padding:4px;border-radius:6px;line-height:1"><i class="ti ti-pencil"></i></button><button onclick="openDeleteConfirm(${s.id})" title="Remove student" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:15px;padding:4px;border-radius:6px;line-height:1"><i class="ti ti-user-minus"></i></button></div></div>`;
   }).join('');
 }
 let editTargetId=null;
@@ -1009,7 +1011,7 @@ function openOv(id){
   if(id==='ov-switch'){document.getElementById('switch-list').innerHTML=[...students].sort((a,b)=>a.name.localeCompare(b.name)).map(s=>`<div class="student-row" style="cursor:pointer" onclick="switchStudent(${s.id})"><div class="av">${s.initials}</div><div><div class="sname">${s.name}</div><div class="splan">${PLAN_LABEL[s.plan]}</div></div>${s.id===currentStudentId?`<i class="ti ti-check" style="margin-left:auto;color:#9333ea;font-size:16px"></i>`:''}</div>`).join('');}
   document.getElementById(id).classList.add('open');
 }
-function closeOv(id){document.getElementById(id).classList.remove('open');cancelTarget=null;bookTarget=null;adminBookTarget=null;pendingBookType=null;editSchedId=null;skipRequestTarget=null;if(id==='ov-link-account'){linkTargetId=null;linkSourceId=null;}}
+function closeOv(id){document.getElementById(id).classList.remove('open');cancelTarget=null;bookTarget=null;adminBookTarget=null;pendingBookType=null;editSchedId=null;skipRequestTarget=null;if(id==='ov-link-account'){linkTargetId=null;linkSourceId=null;}if(id==='ov-manage-makeups')manageMakeupsTargetId=null;}
 function switchStudent(id){currentStudentId=id;localStorage.setItem('dxpole_student',String(id));updateWhoBar();closeOv('ov-switch');renderSCal();}
 
 
@@ -1057,10 +1059,11 @@ function denyChangeRequest(reqId){
   saveState(['changeRequests']);renderAPayments();
 }
 
-function openAddMakeup(){
+function openAddMakeup(presetStudentId){
   // populate student dropdown
   const sel=document.getElementById('mu-student');
   sel.innerHTML=students.map(s=>`<option value="${s.id}">${s.name}</option>`).join('');
+  if(presetStudentId)sel.value=String(presetStudentId);
   // default expiry = 3 months from today
   const exp=new Date(now());exp.setMonth(exp.getMonth()+3);
   document.getElementById('mu-expiry').value=exp.toISOString().slice(0,10);
@@ -1084,6 +1087,26 @@ function confirmAddMakeup(){
   });
   saveState(['makeups','nextMid']);closeOv('ov-add-makeup');
   renderSMu();
+  if(isAdmin){renderAStudents();if(manageMakeupsTargetId)renderManageMakeups();}
+}
+let manageMakeupsTargetId=null;
+function openManageMakeups(studentId){
+  manageMakeupsTargetId=studentId;
+  renderManageMakeups();
+  openOv('ov-manage-makeups');
+}
+function renderManageMakeups(){
+  const s=getStudent(manageMakeupsTargetId);if(!s)return;
+  document.getElementById('mm-sub').textContent=`${s.name}'s make-up credits`;
+  const mine=makeups.filter(m=>m.studentId===manageMakeupsTargetId);
+  const el=document.getElementById('mm-list');
+  if(!mine.length){el.innerHTML=`<div class="empty"><i class="ti ti-refresh"></i>No make-up credits</div>`;return;}
+  el.innerHTML=mine.map(m=>`<div class="sched-row"><span style="font-size:12px;color:var(--text-secondary);flex:1">${m.classDay}${m.used?` <span style="color:var(--text-muted)">· used ${m.usedDate||''}</span>`:` <span style="color:var(--text-muted)">· expires ${m.expiry}</span>`}</span><button class="del-btn" onclick="deleteMakeup(${m.id})" title="Remove"><i class="ti ti-trash"></i></button></div>`).join('');
+}
+function deleteMakeup(id){
+  makeups=makeups.filter(m=>m.id!==id);
+  saveState(['makeups']);
+  renderManageMakeups();renderAStudents();renderSMu();
 }
 
 function renderSMyClasses(){
@@ -1431,6 +1454,16 @@ db.collection('studio').doc('state').onSnapshot(doc=>{
   <div style="display:flex;gap:8px;margin-top:4px">
     <button class="btn-s" style="flex:1;padding:11px;border-radius:8px;border:0.5px solid var(--border-strong);color:var(--text-primary);background:none;font-size:13px;cursor:pointer" onclick="closeOv('ov-add-makeup')">Cancel</button>
     <button style="flex:1;padding:11px;border-radius:8px;background:#9333ea;color:white;border:none;font-size:13px;cursor:pointer;font-weight:500" onclick="confirmAddMakeup()">Add credit</button>
+  </div>
+</div></div>
+<div class="overlay" id="ov-manage-makeups"><div class="sheet">
+  <div class="handle"></div>
+  <h3>Make-up credits</h3>
+  <p class="sub" id="mm-sub"></p>
+  <div id="mm-list"></div>
+  <div style="display:flex;gap:8px;margin-top:10px">
+    <button class="btn-s" style="flex:1" onclick="closeOv('ov-manage-makeups')">Close</button>
+    <button class="btn-p" style="flex:1" onclick="openAddMakeup(manageMakeupsTargetId)"><i class="ti ti-plus"></i> Add credit</button>
   </div>
 </div></div>
 
