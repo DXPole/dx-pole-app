@@ -1214,6 +1214,16 @@ async function doLogin(){
   catch(e){authError('Incorrect email or password.');}
 }
 
+function waitForSync(timeoutMs){
+  if(_hasSyncedData)return Promise.resolve(true);
+  return new Promise(resolve=>{
+    const start=Date.now();
+    const iv=setInterval(()=>{
+      if(_hasSyncedData){clearInterval(iv);resolve(true);}
+      else if(Date.now()-start>timeoutMs){clearInterval(iv);resolve(false);}
+    },100);
+  });
+}
 async function doSignup(){
   const name=document.getElementById('auth-name').value.trim();
   const email=document.getElementById('auth-email-su').value.trim();
@@ -1222,6 +1232,8 @@ async function doSignup(){
   if(!name){authError('Please enter your full name.');return;}
   if(!email){authError('Please enter your email address.');return;}
   if(password.length<6){authError('Password must be at least 6 characters.');return;}
+  const synced=await waitForSync(8000);
+  if(!synced){authError('Still connecting — please check your connection and try again in a moment.');return;}
   try{
     const cred=await auth.createUserWithEmailAndPassword(email,password);
     const uid=cred.user.uid;
@@ -1250,17 +1262,27 @@ async function getNextId(counterField){
 }
 let myLinkInfo=null;
 function tryBackfillLink(){
-  if(!myLinkInfo)return;
-  const s=getStudent(myLinkInfo.studentId);
-  if(!s)return;
-  if(s.uid===myLinkInfo.uid&&s.email===(myLinkInfo.email||s.email||''))return;
-  s.uid=myLinkInfo.uid;
-  if(myLinkInfo.email)s.email=myLinkInfo.email;
+  if(!myLinkInfo||!_hasSyncedData)return;
+  const info=myLinkInfo;
+  const s=getStudent(info.studentId);
+  if(!s){
+    // Dangling link: the users/{uid} doc points to a student record that
+    // doesn't actually exist (e.g. an earlier signup's save got interrupted
+    // before it finished writing). Provision a fresh profile so they land
+    // somewhere instead of staying stuck, and re-point their login at it.
+    myLinkInfo=null;
+    pendingAuthUser={uid:info.uid,email:info.email,displayName:info.name};
+    tryProvisionUser();
+    return;
+  }
+  if(s.uid===info.uid&&s.email===(info.email||s.email||''))return;
+  s.uid=info.uid;
+  if(info.email)s.email=info.email;
   saveState(['students']);
 }
 let pendingAuthUser=null;
 async function tryProvisionUser(){
-  if(!pendingAuthUser||!_appReady)return;
+  if(!pendingAuthUser||!_hasSyncedData)return;
   const user=pendingAuthUser;pendingAuthUser=null;
   try{
     const newId=await getNextId('nextSid');
@@ -1288,7 +1310,7 @@ auth.onAuthStateChanged(async user=>{
       if(udoc.exists){
         const data=udoc.data();
         currentStudentId=data.studentId;
-        myLinkInfo={uid:user.uid,email:data.email||user.email||'',studentId:data.studentId};
+        myLinkInfo={uid:user.uid,email:data.email||user.email||'',name:data.name||'',studentId:data.studentId};
         tryBackfillLink();
       }else{
         // account exists in Firebase Auth but was never linked to a student record
