@@ -427,16 +427,23 @@ const DEFAULTS={
 };
 
 let _hasSyncedData=false;
-function saveState(){
+function saveState(fields){
   if(!_hasSyncedData){
     console.error('Refused to save: local data has not been confirmed in sync with the server yet. This prevents overwriting real data with stale/placeholder data.');
     return;
   }
-  db.collection('studio').doc('state').set({
+  const all={
     schedule,nextSchedId,dropinDates,nextDropinId,students,recurringSlots,
     monthStatus,bookings,cancellations,makeups,changeRequests,nextChangeReqId,
     expenses,nextExpId,nextMid,nextSid,
-  }).catch(e=>console.error('Save error:',e));
+  };
+  // Only the listed top-level fields are written (via merge), so two clients
+  // editing different parts of the app at the same time (e.g. admin editing
+  // expenses while a student books a class) can't clobber each other's
+  // unrelated changes. Omitting `fields` falls back to writing everything —
+  // used only for first-time document creation.
+  const data=fields?Object.fromEntries(fields.map(f=>[f,all[f]])):all;
+  db.collection('studio').doc('state').set(data,{merge:true}).catch(e=>console.error('Save error:',e));
 }
 
 let schedule=DEFAULTS.schedule,nextSchedId=DEFAULTS.nextSchedId;
@@ -480,7 +487,7 @@ function getOldestMakeup(studentId){
   const mine=makeups.filter(m=>m.studentId===studentId&&!m.used).sort((a,b)=>a.expiry.localeCompare(b.expiry));
   return mine.length?mine[0]:null;
 }
-function setMonthStatus(sid,ms,st){if(!monthStatus[sid])monthStatus[sid]={};monthStatus[sid][ms]=st;saveState();}
+function setMonthStatus(sid,ms,st){if(!monthStatus[sid])monthStatus[sid]={};monthStatus[sid][ms]=st;saveState(['monthStatus']);}
 function isCancellable(ds){const today=todayStr();if(ds>today)return true;if(ds<today)return false;const t=now(),c=new Date(t);c.setHours(12,0,0,0);return t<c;}
 function getTrackingMonths(){const months=[],base=now();for(let i=-2;i<=3;i++){const d=new Date(base.getFullYear(),base.getMonth()+i,1);months.push(monthStr(d));}return months;}
 function capColor(n,cap){if(n>=cap)return'#e24b4a';if(n>=cap*0.7)return'#EF9F27';return'#9333ea';}
@@ -624,7 +631,7 @@ function renderSPayments(){
 }
 
 function openSkipRequest(ms){skipRequestTarget={studentId:currentStudentId,ms};document.getElementById('sr-ci').innerHTML=`<strong>${monthLabel(ms)}</strong><span>Request this month off — no payment due if approved</span>`;openOv('ov-skip-request');}
-function confirmSkipRequest(){if(!skipRequestTarget)return;setMonthStatus(skipRequestTarget.studentId,skipRequestTarget.ms,'skip_requested');saveState();closeOv('ov-skip-request');renderSPayments();}
+function confirmSkipRequest(){if(!skipRequestTarget)return;setMonthStatus(skipRequestTarget.studentId,skipRequestTarget.ms,'skip_requested');closeOv('ov-skip-request');renderSPayments();}
 
 function renderAPayments(){
   const reqBanner=document.getElementById('skip-requests-banner');
@@ -713,7 +720,7 @@ function confirmEditStudent(){
       months.forEach(ms=>{if(!monthStatus[s.id][ms])monthStatus[s.id][ms]='tentative';});
     }
   }
-  editTargetId=null;saveState();closeOv('ov-edit-student');renderAStudents();updateWhoBar();
+  editTargetId=null;saveState(['students','recurringSlots','monthStatus']);closeOv('ov-edit-student');renderAStudents();updateWhoBar();
 }
 function openDeleteConfirm(id){
   const s=students.find(x=>x.id===id);if(!s)return;
@@ -764,7 +771,7 @@ function confirmLinkAccount(){
   students=students.filter(x=>x.id!==sourceId);
   delete recurringSlots[sourceId];delete monthStatus[sourceId];
   if(currentStudentId===sourceId)currentStudentId=targetId;
-  linkTargetId=null;linkSourceId=null;saveState();closeOv('ov-link-account');renderAStudents();updateWhoBar();
+  linkTargetId=null;linkSourceId=null;saveState(['students','makeups','bookings','cancellations','monthStatus','recurringSlots']);closeOv('ov-link-account');renderAStudents();updateWhoBar();
 }
 function confirmDeleteStudent(){
   if(!deleteTargetId)return;
@@ -775,7 +782,7 @@ function confirmDeleteStudent(){
   Object.keys(bookings).forEach(key=>{bookings[key]=(bookings[key]||[]).filter(b=>b.studentId!==deleteTargetId);});
   cancellations=cancellations.filter(c=>c.studentId!==deleteTargetId);
   if(currentStudentId===deleteTargetId&&students.length>0){currentStudentId=students[0].id;updateWhoBar();}
-  deleteTargetId=null;saveState();
+  deleteTargetId=null;saveState(['students','recurringSlots','monthStatus','makeups','bookings','cancellations']);
   closeOv('ov-confirm-delete');
   renderAStudents();renderAFinance();
 }
@@ -796,10 +803,10 @@ function renderExpenses(){
   if(!expenses.length){el.innerHTML=`<div class="empty"><i class="ti ti-receipt"></i>No expenses</div>`;return;}
   el.innerHTML=expenses.map(e=>`<div class="exp-row"><div style="flex:1"><div style="font-size:13px;color:var(--text-primary)">${e.name}</div><span class="exp-type ${e.type==='recurring'?'exp-recurring':'exp-oneoff'}">${e.type==='recurring'?'Monthly':'One-off'}</span></div><span style="font-size:13px;font-weight:500;color:var(--text-primary)">R${e.amount.toLocaleString()}</span><button style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:13px;margin-left:6px" onclick="deleteExpense(${e.id})"><i class="ti ti-trash"></i></button></div>`).join('');
 }
-function deleteExpense(id){expenses=expenses.filter(e=>e.id!==id);saveState();renderExpenses();renderAFinance();}
+function deleteExpense(id){expenses=expenses.filter(e=>e.id!==id);saveState(['expenses']);renderExpenses();renderAFinance();}
 function confirmAddExpense(){
   const name=document.getElementById('exp-name').value.trim(),amt=parseFloat(document.getElementById('exp-amt').value),type=document.getElementById('exp-type').value;
-  if(!name||!amt)return;expenses.push({id:nextExpId++,name,amount:amt,type});saveState();closeOv('ov-add-expense');renderExpenses();renderAFinance();
+  if(!name||!amt)return;expenses.push({id:nextExpId++,name,amount:amt,type});saveState(['expenses','nextExpId']);closeOv('ov-add-expense');renderExpenses();renderAFinance();
 }
 function renderAFinance(){
   const currentMs=monthStr(now()),paidStudents=students.filter(s=>PLAN_ALLOWANCE[s.plan]>0&&getSlotIds(s.id).length&&getMonthStatus(s.id,currentMs)==='paid');
@@ -901,7 +908,7 @@ function confirmBook(){
       }
     }
   }
-  saveState();closeOv('ov-book');renderSCal();updateWhoBar();
+  saveState(['recurringSlots','monthStatus','bookings','makeups']);closeOv('ov-book');renderSCal();updateWhoBar();
 }
 function openCancel(key,dateS){
   cancelTarget={key,dateS};const canCx=isCancellable(dateS);
@@ -923,7 +930,7 @@ async function confirmCancel(){
     nextMid=Math.max(nextMid,newMid+1);
     makeups.push({id:newMid,studentId:currentStudentId,studentName:s.name,classDay:dateS,classTime:'',expiry:exp.toISOString().slice(0,10)});
   }
-  saveState();closeOv('ov-cancel');renderSCal();
+  saveState(['bookings','cancellations','makeups','nextMid']);closeOv('ov-cancel');renderSCal();
 }
 function openAdminBook(key,dateS,schedId){
   adminBookTarget={key,dateS,schedId};
@@ -935,25 +942,25 @@ function openAdminBook(key,dateS,schedId){
 function confirmAdminBook(){
   const sid=parseInt(document.getElementById('abk-student').value),type=document.getElementById('abk-type').value;
   if(!sid||!adminBookTarget)return;const{key}=adminBookTarget;
-  if(!bookings[key])bookings[key]=[];bookings[key].push({studentId:sid,type,status:'confirmed'});saveState();closeOv('ov-admin-book');renderACal();
+  if(!bookings[key])bookings[key]=[];bookings[key].push({studentId:sid,type,status:'confirmed'});saveState(['bookings']);closeOv('ov-admin-book');renderACal();
 }
 function openAddClass(){editSchedId=null;document.getElementById('ac-title').textContent='Add recurring class';document.getElementById('ac-day').value='Monday';document.getElementById('ac-time').value='18:00';document.getElementById('ac-cap').value='5';openOv('ov-add-class');}
 function openEditClass(id){const sc=schedule.find(x=>x.id===id);if(!sc)return;editSchedId=id;document.getElementById('ac-title').textContent='Edit class';document.getElementById('ac-day').value=sc.day;document.getElementById('ac-time').value=sc.time;document.getElementById('ac-cap').value=sc.cap;openOv('ov-add-class');}
 function confirmAddClass(){
   const day=document.getElementById('ac-day').value,time=document.getElementById('ac-time').value,cap=parseInt(document.getElementById('ac-cap').value)||5;
   if(editSchedId){const sc=schedule.find(x=>x.id===editSchedId);if(sc){sc.day=day;sc.time=time;sc.cap=cap;}}
-  else schedule.push({id:nextSchedId++,day,time,cap});saveState();closeOv('ov-add-class');renderASchedule();
+  else schedule.push({id:nextSchedId++,day,time,cap});saveState(['schedule','nextSchedId']);closeOv('ov-add-class');renderASchedule();
 }
-function deleteClass(id){schedule=schedule.filter(x=>x.id!==id);saveState();renderASchedule();}
+function deleteClass(id){schedule=schedule.filter(x=>x.id!==id);saveState(['schedule']);renderASchedule();}
 function confirmAddDropin(){
   const date=document.getElementById('di-date').value,time=document.getElementById('di-time').value,cap=parseInt(document.getElementById('di-cap').value)||5;
-  if(!date)return;dropinDates.push({id:nextDropinId++,date,time,cap});saveState();closeOv('ov-add-dropin-date');renderASchedule();
+  if(!date)return;dropinDates.push({id:nextDropinId++,date,time,cap});saveState(['dropinDates','nextDropinId']);closeOv('ov-add-dropin-date');renderASchedule();
 }
-function deleteDropin(id){dropinDates=dropinDates.filter(x=>x.id!==id);saveState();renderASchedule();}
+function deleteDropin(id){dropinDates=dropinDates.filter(x=>x.id!==id);saveState(['dropinDates']);renderASchedule();}
 function confirmAddStudent(){
   const name=document.getElementById('ns-name').value.trim();if(!name)return;
   const initials=name.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
-  students.push({id:nextSid++,name,initials,plan:document.getElementById('ns-plan').value,email:document.getElementById('ns-email').value.trim()});saveState();closeOv('ov-add-student');renderAStudents();
+  students.push({id:nextSid++,name,initials,plan:document.getElementById('ns-plan').value,email:document.getElementById('ns-email').value.trim()});saveState(['students','nextSid']);closeOv('ov-add-student');renderAStudents();
 }
 function sshow(id){
   document.querySelectorAll('#student-app .screen').forEach(s=>s.classList.remove('active'));
@@ -1018,7 +1025,7 @@ function confirmDayChangeRequest(){
   const s=curStudent(),fromSchedId=parseInt(document.getElementById('dc-from-slot').value),toSchedId=parseInt(document.getElementById('dc-new-slot').value);
   if(!fromSchedId||!toSchedId)return;
   changeRequests.push({id:nextChangeReqId++,studentId:s.id,studentName:s.name,fromSchedId,toSchedId});
-  saveState();closeOv('ov-day-change');
+  saveState(['changeRequests','nextChangeReqId']);closeOv('ov-day-change');
   renderSPayments();
 }
 function approveChangeRequest(reqId){
@@ -1027,11 +1034,11 @@ function approveChangeRequest(reqId){
   if(idx>=0)ids[idx]=req.toSchedId;else ids.push(req.toSchedId);
   setSlotIds(req.studentId,ids);
   changeRequests=changeRequests.filter(r=>r.id!==reqId);
-  saveState();renderAPayments();renderAStudents();
+  saveState(['recurringSlots','changeRequests']);renderAPayments();renderAStudents();
 }
 function denyChangeRequest(reqId){
   changeRequests=changeRequests.filter(r=>r.id!==reqId);
-  saveState();renderAPayments();
+  saveState(['changeRequests']);renderAPayments();
 }
 
 function openAddMakeup(){
@@ -1059,7 +1066,7 @@ function confirmAddMakeup(){
     expiry,
     used:false
   });
-  saveState();closeOv('ov-add-makeup');
+  saveState(['makeups','nextMid']);closeOv('ov-add-makeup');
   renderSMu();
 }
 
@@ -1207,7 +1214,7 @@ async function doSignup(){
     nextSid=Math.max(nextSid,newId+1);
     students.push({id:newId,name,initials,plan:'trial',email,uid});
     await db.collection('users').doc(uid).set({name,email,studentId:newId});
-    saveState();
+    saveState(['students','nextSid']);
     currentStudentId=newId;
   }catch(e){
     if(e.code==='auth/email-already-in-use')authError('An account with this email already exists.');
@@ -1233,7 +1240,7 @@ function tryBackfillLink(){
   if(s.uid===myLinkInfo.uid&&s.email===(myLinkInfo.email||s.email||''))return;
   s.uid=myLinkInfo.uid;
   if(myLinkInfo.email)s.email=myLinkInfo.email;
-  saveState();
+  saveState(['students']);
 }
 let pendingAuthUser=null;
 async function tryProvisionUser(){
@@ -1246,7 +1253,7 @@ async function tryProvisionUser(){
     const initials=name.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
     students.push({id:newId,name,initials,plan:'trial',email:user.email,uid:user.uid});
     await db.collection('users').doc(user.uid).set({name,email:user.email,studentId:newId});
-    saveState();
+    saveState(['students','nextSid']);
     currentStudentId=newId;
     updateWhoBar();renderSCal();
   }catch(e){console.error('Provision error:',e);}
@@ -1302,7 +1309,7 @@ db.collection('studio').doc('state').onSnapshot(doc=>{
     nextMid=d.nextMid??DEFAULTS.nextMid;
     nextSid=d.nextSid??DEFAULTS.nextSid;
     _hasSyncedData=true;
-    if(normalizeRecurringSlots())saveState();
+    if(normalizeRecurringSlots())saveState(['recurringSlots']);
     tryBackfillLink();
     tryProvisionUser();
   } else if(doc.exists===false){
